@@ -20,8 +20,6 @@ interface Thread {
   quick: string[];
 }
 
-const keyOf = (p: Persona) => (p.role === "Candidate" ? `c:${p.candidateId}` : `e:${p.employeeId}`);
-
 /** Renders WhatsApp-style *bold* and _italic_ text plus line breaks. */
 function Rich({ text }: { text: string }) {
   const parts: ReactNode[] = [];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useDemoStore } from "@/lib/store";
 import { Icon } from "../ui/Icon";
 import { useUi } from "./UiContext";
@@ -22,7 +22,6 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const listId = useId();
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const results = useMemo<Result[]>(() => {
     const q = query.trim().toLowerCase();
@@ -53,7 +52,7 @@ export function GlobalSearch() {
     r.run();
     setQuery("");
     setOpen(false);
-    inputRef.current?.blur();
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   }
 
   const showList = open && query.trim().length >= 2;
@@ -71,7 +70,6 @@ export function GlobalSearch() {
         Search candidates and jobs
       </label>
       <input
-        ref={inputRef}
         id={`${listId}-input`}
         className="search"
         placeholder="Search candidates, jobs…"
