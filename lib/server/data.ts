@@ -1,0 +1,294 @@
+// Reads and writes MagHR data in Supabase.
+//
+// The approach: business rules live in ONE place, the pure reducer in lib/recruitment.ts.
+// To save a change, the server loads the company's current data, runs the same reducer
+// with a server-side timestamp and the real user's name, and writes only the rows that
+// changed. Row-level security in the database is the final gate on who may change what.
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DemoState } from "../demo-data";
+import type { Activity, Candidate, Employee, Interview, Job, Note, SelfServiceRequest, StageChange } from "../types";
+
+type Row = Record<string, unknown>;
+
+const s = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallback);
+const n = (v: unknown, fallback = 0) => (typeof v === "number" ? v : fallback);
+
+function toJob(r: Row): Job {
+  return {
+    id: s(r.id),
+    code: s(r.code),
+    title: s(r.title),
+    department: s(r.department) as Job["department"],
+    location: s(r.location),
+    employmentType: s(r.employment_type) as Job["employmentType"],
+    description: s(r.description),
+    owner: s(r.owner),
+    status: s(r.status) as Job["status"],
+    createdAt: s(r.created_at),
+    requirements: Array.isArray(r.requirements) ? (r.requirements as Job["requirements"]) : [],
+    channels: r.channels && typeof r.channels === "object" ? (r.channels as Job["channels"]) : {},
+  };
+}
+
+function toCandidate(r: Row, notes: Note[], interviews: Interview[], history: StageChange[]): Candidate {
+  const p = (r.profile ?? {}) as Partial<Candidate["profile"]>;
+  return {
+    id: s(r.id),
+    name: s(r.name),
+    email: s(r.email),
+    phone: s(r.phone),
+    jobId: (r.job_id as string | null) ?? null,
+    cvStatus: s(r.cv_status) as Candidate["cvStatus"],
+    stage: s(r.stage) as Candidate["stage"],
+    rating: n(r.rating),
+    notes,
+    interviews,
+    offerStatus: s(r.offer_status) as Candidate["offerStatus"],
+    inTalentPool: Boolean(r.in_talent_pool),
+    convertedToEmployeeId: (r.converted_employee_id as string | null) ?? null,
+    stageHistory: history,
+    source: s(r.source, "Added manually") as Candidate["source"],
+    profile: {
+      headline: s(p.headline),
+      skills: Array.isArray(p.skills) ? p.skills.filter((x): x is string => typeof x === "string") : [],
+      yearsExperience: n(p.yearsExperience),
+      location: s(p.location),
+      education: s(p.education),
+    },
+    requirementReviews: (r.requirement_reviews ?? {}) as Candidate["requirementReviews"],
+    sourcedProfileId: (r.sourced_profile_id as string | null) ?? null,
+    createdAt: s(r.created_at),
+    updatedAt: s(r.updated_at),
+  };
+}
+
+function toEmployee(r: Row): Employee {
+  return {
+    id: s(r.id),
+    name: s(r.name),
+    email: s(r.email),
+    department: s(r.department) as Employee["department"],
+    jobTitle: s(r.job_title),
+    location: s(r.location),
+    startDate: s(r.start_date),
+    status: s(r.status) as Employee["status"],
+    source: s(r.source) as Employee["source"],
+  };
+}
+
+function groupBy<T>(rows: Row[], key: string, map: (r: Row) => T): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = s(r[key]);
+    const list = out.get(k) ?? [];
+    list.push(map(r));
+    out.set(k, list);
+  }
+  return out;
+}
+
+async function rows(q: PromiseLike<{ data: Row[] | null; error: { message: string } | null }>): Promise<Row[]> {
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+/** Loads everything the current user may see in their organisation. RLS filters by role. */
+export async function loadState(supabase: SupabaseClient, orgId: string): Promise<DemoState> {
+  const [jobs, candidates, notes, interviews, history, employees, activity, inbox] = await Promise.all([
+    rows(supabase.from("jobs").select("*").eq("org_id", orgId).order("created_at", { ascending: false })),
+    rows(supabase.from("candidates").select("*").eq("org_id", orgId).order("created_at", { ascending: false })),
+    rows(supabase.from("candidate_notes").select("*").eq("org_id", orgId).order("created_at", { ascending: false })),
+    rows(supabase.from("interviews").select("*").eq("org_id", orgId).order("scheduled_for")),
+    rows(supabase.from("stage_history").select("*").eq("org_id", orgId).order("at")),
+    rows(supabase.from("employees").select("*").eq("org_id", orgId).order("name")),
+    rows(supabase.from("activity").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(50)),
+    rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
+  ]);
+
+  const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
+  const interviewsBy = groupBy<Interview>(interviews, "candidate_id", (r) => ({
+    id: s(r.id),
+    scheduledFor: s(r.scheduled_for),
+    mode: s(r.mode) as Interview["mode"],
+    interviewers: s(r.interviewers),
+    location: s(r.location),
+    status: s(r.status) as Interview["status"],
+  }));
+  const historyBy = groupBy<StageChange>(history, "candidate_id", (r) => ({
+    from: (r.from_stage as StageChange["from"]) ?? null,
+    to: s(r.to_stage) as StageChange["to"],
+    at: s(r.at),
+    by: s(r.by_name),
+  }));
+
+  return {
+    jobs: jobs.map(toJob),
+    candidates: candidates.map((r) => toCandidate(r, notesBy.get(s(r.id)) ?? [], interviewsBy.get(s(r.id)) ?? [], historyBy.get(s(r.id)) ?? [])),
+    employees: employees.map(toEmployee),
+    activity: activity.map<Activity>((r) => ({ id: s(r.id), kind: s(r.kind) as Activity["kind"], title: s(r.title), detail: s(r.detail), at: s(r.at) })),
+    talentDb: [], // MyJobMag CV database: needs MyJobMag API approval
+    invitations: [],
+    inbox: inbox.map<SelfServiceRequest>((r) => ({
+      id: s(r.id),
+      channel: "WhatsApp",
+      from: s(r.from_name),
+      role: s(r.role) as SelfServiceRequest["role"],
+      kind: s(r.kind) as SelfServiceRequest["kind"],
+      detail: s(r.detail),
+      status: s(r.status) as SelfServiceRequest["status"],
+      at: s(r.at),
+    })),
+  };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isUuid = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
+
+function jobRow(j: Job, orgId: string) {
+  return {
+    id: j.id,
+    org_id: orgId,
+    code: j.code,
+    title: j.title,
+    department: j.department,
+    location: j.location,
+    employment_type: j.employmentType,
+    description: j.description,
+    owner: j.owner,
+    status: j.status,
+    requirements: j.requirements,
+    channels: j.channels,
+  };
+}
+
+function candidateRow(c: Candidate, orgId: string) {
+  return {
+    id: c.id,
+    org_id: orgId,
+    job_id: c.jobId,
+    name: c.name,
+    email: c.email,
+    phone: c.phone,
+    cv_status: c.cvStatus,
+    stage: c.stage,
+    rating: c.rating,
+    offer_status: c.offerStatus,
+    in_talent_pool: c.inTalentPool,
+    source: c.source,
+    profile: c.profile,
+    requirement_reviews: c.requirementReviews,
+    sourced_profile_id: c.sourcedProfileId,
+  };
+}
+
+async function check(q: PromiseLike<{ error: { message: string } | null }>) {
+  const { error } = await q;
+  if (error) throw new Error(error.message);
+}
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Writes the differences between two states. Stage history is not written here:
+ * a database trigger records it, so it cannot be forged.
+ */
+export async function writeChanges(supabase: SupabaseClient, orgId: string, before: DemoState, after: DemoState) {
+  // Jobs
+  const jobsBefore = new Map(before.jobs.map((j) => [j.id, j]));
+  for (const j of after.jobs) {
+    const prev = jobsBefore.get(j.id);
+    if (!prev) await check(supabase.from("jobs").insert(jobRow(j, orgId)));
+    else if (!same(prev, j)) {
+      const { id, org_id, ...changes } = jobRow(j, orgId);
+      void org_id;
+      await check(supabase.from("jobs").update(changes).eq("id", id));
+    }
+  }
+
+  // Employees created by conversion go through the database function, which re-checks the rules.
+  const empBefore = new Set(before.employees.map((e) => e.id));
+  const converted = new Map<string, Employee>();
+  for (const e of after.employees) if (!empBefore.has(e.id)) converted.set(e.id, e);
+
+  // Candidates and their notes/interviews
+  const candBefore = new Map(before.candidates.map((c) => [c.id, c]));
+  for (const c of after.candidates) {
+    const prev = candBefore.get(c.id);
+    if (!prev) {
+      await check(supabase.from("candidates").insert(candidateRow(c, orgId)));
+    } else {
+      const a = candidateRow(prev, orgId);
+      const b = candidateRow(c, orgId);
+      const changes: Record<string, unknown> = {};
+      for (const k of Object.keys(b) as (keyof typeof b)[]) if (!same(a[k], b[k])) changes[k] = b[k];
+      if (Object.keys(changes).length) await check(supabase.from("candidates").update(changes).eq("id", c.id));
+    }
+
+    const noteIds = new Set((prev?.notes ?? []).map((x) => x.id));
+    for (const note of c.notes) {
+      if (noteIds.has(note.id)) continue;
+      await check(
+        supabase.from("candidate_notes").insert({
+          ...(isUuid(note.id) ? { id: note.id } : {}),
+          org_id: orgId,
+          candidate_id: c.id,
+          text: note.text,
+          author_name: note.author,
+        }),
+      );
+    }
+
+    const prevInterviews = new Map((prev?.interviews ?? []).map((i) => [i.id, i]));
+    for (const i of c.interviews) {
+      const p = prevInterviews.get(i.id);
+      if (!p) {
+        await check(
+          supabase.from("interviews").insert({
+            ...(isUuid(i.id) ? { id: i.id } : {}),
+            org_id: orgId,
+            candidate_id: c.id,
+            scheduled_for: i.scheduledFor,
+            mode: i.mode,
+            interviewers: i.interviewers,
+            location: i.location,
+            status: i.status,
+          }),
+        );
+      } else if (p.status !== i.status) {
+        await check(supabase.from("interviews").update({ status: i.status }).eq("id", i.id));
+      }
+    }
+
+    if (prev && !prev.convertedToEmployeeId && c.convertedToEmployeeId) {
+      const e = converted.get(c.convertedToEmployeeId);
+      if (e) {
+        await check(
+          supabase.rpc("convert_candidate_to_employee", {
+            p_candidate: c.id,
+            p_department: e.department,
+            p_job_title: e.jobTitle,
+            p_location: e.location,
+            p_start_date: e.startDate,
+            p_employee: isUuid(e.id) ? e.id : null,
+          }),
+        );
+      }
+    }
+  }
+
+  // Inbox decisions
+  const inboxBefore = new Map(before.inbox.map((r) => [r.id, r]));
+  for (const r of after.inbox) {
+    const p = inboxBefore.get(r.id);
+    if (p && p.status !== r.status) await check(supabase.from("inbox_requests").update({ status: r.status }).eq("id", r.id));
+  }
+
+  // Activity feed (new entries only)
+  const actBefore = new Set(before.activity.map((a) => a.id));
+  const fresh = after.activity.filter((a) => !actBefore.has(a.id)).reverse();
+  if (fresh.length) {
+    await check(supabase.from("activity").insert(fresh.map((a) => ({ org_id: orgId, kind: a.kind, title: a.title, detail: a.detail }))));
+  }
+}
