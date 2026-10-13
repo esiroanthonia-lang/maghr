@@ -38,11 +38,11 @@
 
 /* ---------- Palette: Evergreen & brass (default) ---------- */
 :root {
-  --font-head: var(--f-fraunces, "Fraunces"), Georgia, "Times New Roman", serif;
+  --font-head: var(--f-hanken, "Hanken Grotesk"), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-ui: var(--f-hanken, "Hanken Grotesk"), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --head-weight: 560;
-  --head-track: -0.02em;
-  --head-num-track: -0.02em;
+  --head-weight: 650;
+  --head-track: -0.03em;
+  --head-num-track: -0.035em;
 
   --canvas: #f3f4ef; --surface: #ffffff; --surface-2: #f7f8f4; --sunken: #eceee7; --hover: #f4f6f0;
   --ink: #13201a; --ink-2: #3a4842; --muted: #64716a; --line: #e2e5dd; --line-2: #d3d8ce;

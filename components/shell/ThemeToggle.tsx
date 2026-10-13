@@ -10,7 +10,7 @@ export type Mode = Theme | "system";
 export type Palette = "evergreen" | "clean" | "midnight" | "classic";
 
 export const PALETTES: { id: Palette; name: string; desc: string; preview: { side: string; sideInk: string; canvas: string; card: string; hero: string; accent: string; line: string } }[] = [
-  { id: "evergreen", name: "Evergreen", desc: "Deep green and brass. Calm and banking-grade.", preview: { side: "#0f2b22", sideInk: "#7a9488", canvas: "#f3f4ef", card: "#ffffff", hero: "#0f2b22", accent: "#cba35c", line: "#e2e5dd" } },
+  { id: "evergreen", name: "Evergreen", desc: "Deep green and gold. Calm and banking-grade.", preview: { side: "#0f2b22", sideInk: "#7a9488", canvas: "#f3f4ef", card: "#ffffff", hero: "#0f2b22", accent: "#cba35c", line: "#e2e5dd" } },
   { id: "clean", name: "Clean", desc: "White and quiet, MyJobMag orange for actions.", preview: { side: "#ffffff", sideInk: "#c9cad0", canvas: "#f7f7f8", card: "#ffffff", hero: "#ffffff", accent: "#e0602a", line: "#e8e8eb" } },
   { id: "midnight", name: "Midnight", desc: "Dark navy with violet. Bold and modern.", preview: { side: "#0a0f1e", sideInk: "#6b7593", canvas: "#f3f5fa", card: "#ffffff", hero: "#1b1f4a", accent: "#6366f1", line: "#e2e6ef" } },
   { id: "classic", name: "Classic", desc: "The original navy and orange.", preview: { side: "#10283a", sideInk: "#7f98a9", canvas: "#f3f5f7", card: "#ffffff", hero: "#10283a", accent: "#e0602a", line: "#e3e8ec" } },
