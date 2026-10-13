@@ -11,7 +11,7 @@ import { Wordmark } from "../ui/Logo";
 import { useToast } from "../ui/Toast";
 
 function NavLink({ item, pathname, pill }: { item: NavItem; pathname: string; pill?: number }) {
-  const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+  const active = item.href === "/" ? pathname === "/" : pathname === item.href || (pathname.startsWith(item.href) && !(item.href === "/me" && pathname !== "/me"));
   return (
     <Link href={item.href} aria-current={active ? "page" : undefined} title={item.label}>
       <span className="ico">
