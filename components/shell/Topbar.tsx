@@ -11,13 +11,13 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export function Topbar() {
   const pathname = usePathname() ?? "/";
-  const { workspace, saving } = useDemoStore();
+  const { workspace, saving, role } = useDemoStore();
   const live = workspace.mode === "live";
 
   return (
     <header className="topbar">
       <div className="crumb">
-        Workspace <span className="crumb-sep">/</span> <strong>{pageTitle(pathname)}</strong>
+        Workspace <span className="crumb-sep">/</span> <strong>{pageTitle(pathname, role)}</strong>
       </div>
       <div className="top-actions">
         <GlobalSearch />
@@ -35,8 +35,8 @@ export function Topbar() {
             </div>
           </>
         ) : (
-          <div className="avatar" title="HR Admin (demo user)" aria-label="Signed in as HR Admin, demo user" role="img">
-            HR
+          <div className="avatar" title={`${ROLE_LABELS[role]} (demo user)`} aria-label={`Viewing the demo as ${ROLE_LABELS[role]}`} role="img">
+            {role === "hr_admin" ? "HR" : ROLE_LABELS[role].slice(0, 2).toUpperCase()}
           </div>
         )}
       </div>

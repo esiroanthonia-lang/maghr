@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MANAGE_NAV, WORKSPACE_NAV, type NavItem } from "@/lib/nav";
+import { navFor, type NavItem } from "@/lib/nav";
 import { signOut } from "@/app/actions/auth";
 import { useDemoStore } from "@/lib/store";
-import { ROLE_LABELS } from "@/lib/workspace";
+import { ROLES, ROLE_LABELS, type Role } from "@/lib/workspace";
 import { Icon } from "../ui/Icon";
 import { Wordmark } from "../ui/Logo";
 import { useToast } from "../ui/Toast";
@@ -31,17 +31,9 @@ function NavLink({ item, pathname, pill }: { item: NavItem; pathname: string; pi
 
 export function Sidebar() {
   const pathname = usePathname() ?? "/";
-  const { state, resetDemo, workspace } = useDemoStore();
+  const { state, resetDemo, workspace, role, setDemoRole } = useDemoStore();
   const live = workspace.mode === "live";
-  // WhatsApp desk is a simulator until a WhatsApp Business account is connected.
-  const isEmployee = live && workspace.me.role === "employee";
-  // Staff with the employee role only need their own space; everything else is for HR, managers and recruiters.
-  const workspaceNav = isEmployee
-    ? WORKSPACE_NAV.filter((n) => n.href === "/me")
-    : live
-      ? WORKSPACE_NAV.filter((n) => n.href !== "/whatsapp")
-      : WORKSPACE_NAV;
-  const manageNav = isEmployee ? MANAGE_NAV.filter((n) => n.href === "/settings") : MANAGE_NAV;
+  const { workspace: workspaceNav, manage: manageNav } = navFor(role, live);
   const toast = useToast();
   const newApplications = state.candidates.filter((c) => c.stage === "Applied" && c.jobId).length;
 
@@ -79,6 +71,17 @@ export function Sidebar() {
         <strong>MagHR by MyJobMag</strong>
         <br />
         Prototype · Demo workspace
+        <br />
+        <label className="view-as">
+          View as
+          <select value={role} onChange={(e) => setDemoRole(e.target.value as Role)} aria-label="View the demo as a role">
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        </label>
         <br />
         <button
           type="button"

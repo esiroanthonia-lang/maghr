@@ -20,9 +20,9 @@ const d = (iso: string) => formatDate(`${iso}T12:00:00Z`);
 
 /** Self-service for whoever is signed in: their details, leave and review. */
 export function MyView() {
-  const { state, act, workspace, year, todayIso, now } = usePeople();
+  const { state, act, workspace, role, year, todayIso, now } = usePeople();
   const toast = useToast();
-  const email = myEmployeeEmail(workspace);
+  const email = myEmployeeEmail(workspace, role);
   const me = state.employees.find((e) => e.email.toLowerCase() === email);
   const [leaveType, setLeaveType] = useState<LeaveType>("Annual");
   const [start, setStart] = useState("");
