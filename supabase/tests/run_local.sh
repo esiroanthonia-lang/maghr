@@ -12,3 +12,4 @@ psql -v ON_ERROR_STOP=1 -q -d maghr_test -f tests/self_service_test.sql | grep -
 psql -v ON_ERROR_STOP=1 -q -d maghr_test -f tests/holidays_test.sql | grep -E "^(TEST|ALL)"
 psql -v ON_ERROR_STOP=1 -q -d maghr_test -f tests/onboarding_test.sql | grep -E "^(TEST|ALL)"
 psql -v ON_ERROR_STOP=1 -q -d maghr_test -f tests/attendance_test.sql | grep -E "^(TEST|ALL)"
+psql -v ON_ERROR_STOP=1 -q -d maghr_test -f tests/careers_test.sql | grep -E "^(TEST|ALL)"

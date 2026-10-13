@@ -124,7 +124,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
   ]);
   const since = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
-  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows, attendanceRows, workStartRows] = await Promise.all([
+  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows, attendanceRows, workStartRows, careersRows] = await Promise.all([
     rows(supabase.from("organizations").select("name, leave_allowance_days").eq("id", orgId).limit(1)),
     optionalRows(supabase.from("employee_compensation").select("employee_id, monthly_gross").eq("org_id", orgId)), // HR admins only (RLS)
     optionalRows(supabase.from("leave_requests").select("*").eq("org_id", orgId).order("start_date", { ascending: false }).limit(500)),
@@ -135,6 +135,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     optionalRows(supabase.from("onboarding_tasks").select("*").eq("org_id", orgId).order("position")), // HR, managers, and the new hire (RLS)
     optionalRows(supabase.from("attendance").select("*").eq("org_id", orgId).gte("date", since).order("date", { ascending: false }).limit(5000)), // HR, managers, own (RLS)
     optionalRows(supabase.from("organizations").select("work_start").eq("id", orgId).limit(1)), // added by the attendance migration
+    optionalRows(supabase.from("organizations").select("careers_enabled, careers_slug, careers_intro").eq("id", orgId).limit(1)), // careers migration
   ]);
 
   const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
@@ -208,6 +209,11 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
       workStart: s(workStartRows[0]?.work_start, "09:00"),
     },
     holidays: holidayRows.map((r) => ({ id: s(r.id), date: s(r.date), name: s(r.name) })),
+    careers: {
+      enabled: Boolean(careersRows[0]?.careers_enabled),
+      slug: s(careersRows[0]?.careers_slug),
+      intro: s(careersRows[0]?.careers_intro),
+    },
     attendance: attendanceRows.map((r) => ({
       id: s(r.id),
       employeeId: s(r.employee_id),
@@ -510,6 +516,15 @@ export async function writeChanges(supabase: SupabaseClient, orgId: string, befo
   }
   if (before.settings.workStart !== after.settings.workStart) {
     await check(supabase.from("organizations").update({ work_start: after.settings.workStart }).eq("id", orgId));
+  }
+
+  if (!same(before.careers, after.careers)) {
+    await check(
+      supabase
+        .from("organizations")
+        .update({ careers_enabled: after.careers.enabled, careers_slug: after.careers.slug || null, careers_intro: after.careers.intro })
+        .eq("id", orgId),
+    );
   }
 
   // Attendance (the database stamps clock-in/out times; HR corrections are signed by the database)

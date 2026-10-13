@@ -46,6 +46,7 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
   "settings/update",
   "settings/addHoliday",
   "settings/removeHoliday",
+  "settings/careers",
   "onboarding/start",
   "onboarding/add",
   "onboarding/toggle",
@@ -57,6 +58,7 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
 
 function friendly(message: string): string {
   if (/row-level security|permission denied|42501/i.test(message)) return "You don’t have permission to make that change.";
+  if (/careers_slug/i.test(message) && /duplicate key|unique/i.test(message)) return "Another company already uses that web address. Try a different one.";
   if (/duplicate key|unique/i.test(message)) return "That conflicts with an existing record (for example a job code or email). Refresh and try again.";
   if (/does not exist|schema cache|PGRST205|42P01/i.test(message)) return "This needs the latest database update. Ask your admin to run the newest file in supabase/migrations.";
   if (/check constraint|violates check/i.test(message)) return "Some details weren’t valid. Please check the form and try again.";

@@ -81,6 +81,11 @@ export function RecruitmentView() {
         intro="Manage vacancies, candidates, interviews, and offers in one place."
         actions={
           <>
+            {state.careers.enabled && state.careers.slug ? (
+              <a className="btn" href={`/careers/${state.careers.slug}`} target="_blank" rel="noopener">
+                <Icon name="briefcase" size={15} /> Careers page
+              </a>
+            ) : null}
             <button type="button" className="btn" onClick={() => openDialog({ type: "candidate", jobId: selectedJob?.status === "Open" ? selectedJob.id : undefined })}>
               <Icon name="userPlus" size={15} /> Add candidate
             </button>

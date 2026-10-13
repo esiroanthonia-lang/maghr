@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatDate } from "@/lib/format";
+import { suggestSlug, validCareersSettings } from "@/lib/careers";
 import { nigeriaFixedHolidays } from "@/lib/holidays";
 import { Panel } from "../ui/bits";
 import { useToast } from "../ui/Toast";
@@ -167,6 +168,85 @@ export function SettingsIntegrations() {
           </li>
         ))}
       </ul>
+    </Panel>
+  );
+}
+
+/** Public careers page: on/off, web address and a short welcome. */
+export function CareersPanel() {
+  const { state, act, can } = usePeople();
+  const toast = useToast();
+  const editable = can("settings/careers");
+  const [enabled, setEnabled] = useState(state.careers.enabled);
+  const [slug, setSlug] = useState(state.careers.slug || suggestSlug(state.settings.companyName));
+  const [intro, setIntro] = useState(state.careers.intro);
+  const next = { enabled, slug: slug.trim().toLowerCase(), intro: intro.trim() };
+  const valid = validCareersSettings(next);
+  const changed = next.enabled !== state.careers.enabled || next.slug !== state.careers.slug || next.intro !== state.careers.intro;
+  const path = `/careers/${state.careers.slug}`;
+  const open = state.jobs.filter((j) => j.status === "Open").length;
+
+  return (
+    <Panel title="Careers page" subtitle={editable ? "A public page listing your open jobs, where people can apply" : "Only HR admins can change this"}>
+      <form
+        className="panel-body settings-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valid) return toast("Use 3–40 lowercase letters, numbers or dashes for the web address.");
+          act({ type: "settings/careers", careers: next });
+          toast(next.enabled ? "Careers page saved. It’s live." : "Careers page saved. It’s switched off.");
+        }}
+      >
+        <label className="switch-row" htmlFor="car-on">
+          <input id="car-on" type="checkbox" checked={enabled} disabled={!editable} onChange={(e) => setEnabled(e.target.checked)} />
+          <span>
+            <strong>Show our careers page</strong>
+            <span className="hint">Only jobs marked Open appear. Applicants go straight into the pipeline as “Careers page”.</span>
+          </span>
+        </label>
+        <div className="field">
+          <label htmlFor="car-slug">Web address</label>
+          <div className="prefixed">
+            <span aria-hidden="true">/careers/</span>
+            <input id="car-slug" value={slug} disabled={!editable} maxLength={40} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} aria-describedby="car-slug-hint" />
+          </div>
+          <span className="hint" id="car-slug-hint">
+            Lowercase letters, numbers and dashes, e.g. {suggestSlug(state.settings.companyName) || "your-company"}.
+          </span>
+        </div>
+        <div className="field">
+          <label htmlFor="car-intro">Welcome text (optional)</label>
+          <textarea id="car-intro" rows={3} maxLength={600} value={intro} disabled={!editable} onChange={(e) => setIntro(e.target.value)} />
+          <span className="hint">{600 - intro.length} characters left. Say what it’s like to work with you.</span>
+        </div>
+        {state.careers.enabled && state.careers.slug ? (
+          <div className="notice" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ flex: 1, minWidth: 180 }}>
+              Live with {open} open {open === 1 ? "role" : "roles"}: <a href={path} target="_blank" rel="noopener">{path}</a>
+            </span>
+            <button
+              type="button"
+              className="btn small"
+              onClick={() => {
+                const url = `${window.location.origin}${path}`;
+                navigator.clipboard?.writeText(url).then(
+                  () => toast("Link copied. Share it on WhatsApp, LinkedIn or your website."),
+                  () => toast(url),
+                );
+              }}
+            >
+              Copy link
+            </button>
+          </div>
+        ) : null}
+        {editable ? (
+          <div>
+            <button className="btn primary" disabled={!changed || !valid}>
+              Save careers page
+            </button>
+          </div>
+        ) : null}
+      </form>
     </Panel>
   );
 }

@@ -4,6 +4,7 @@
 
 import type { CompanyHoliday } from "./holidays";
 import { lagosDate, lagosTime, lagosToIso, lastDays } from "./attendance";
+import type { CareersSettings } from "./careers";
 import { onboardingTemplate } from "./people";
 import type {
   Activity,
@@ -45,6 +46,8 @@ export interface DemoState {
   holidays: CompanyHoliday[];
   onboarding: OnboardingTask[];
   attendance: AttendanceRecord[];
+  /** Public careers page settings. Off by default in real workspaces. */
+  careers: CareersSettings;
 }
 
 /** Requirements per seeded vacancy. Plain sentences; the match panel looks for CV skills inside them. */
@@ -473,6 +476,11 @@ export function createDemoData(now: Date = new Date()): DemoState {
     holidays: [{ id: "hol-001", date: `${today.getUTCFullYear()}-12-31`, name: "Company end-of-year day" }],
     onboarding: seedOnboarding(employees, ago),
     attendance: seedAttendance(employees, today, leave),
+    careers: {
+      enabled: true,
+      slug: "myjobmag-demo",
+      intro: "We help Nigerian employers find great people. Come build it with us: flexible hybrid work, real ownership, and a team that ships.",
+    },
   };
 }
 

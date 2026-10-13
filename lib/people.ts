@@ -4,6 +4,7 @@
 
 import type { DemoState } from "./demo-data";
 import { isTime, lagosDate, lagosToIso } from "./attendance";
+import { validCareersSettings, type CareersSettings } from "./careers";
 import { holidaysBetween } from "./holidays";
 import type {
   CompanySettings,
@@ -74,6 +75,7 @@ export type PeopleAction =
   | ({ type: "settings/update"; settings: CompanySettings } & Meta)
   | ({ type: "settings/addHoliday"; date: string; name: string } & Meta)
   | ({ type: "settings/removeHoliday"; holidayId: string } & Meta)
+  | ({ type: "settings/careers"; careers: CareersSettings } & Meta)
   | ({ type: "onboarding/start"; employeeId: string } & Meta)
   | ({ type: "onboarding/add"; employeeId: string; title: string; owner: OnboardingOwner; dueDate: string | null } & Meta)
   | ({ type: "onboarding/toggle"; taskId: string; done: boolean } & Meta)
@@ -381,6 +383,18 @@ export function peopleReducer(state: State, action: PeopleAction): State {
         ...state,
         holidays: [...state.holidays, { id: action.id, date: action.date, name }].sort((a, b) => a.date.localeCompare(b.date)),
         activity: log(state, action.id, action.at, "settings", "Holiday added", `${name} · ${action.date}`),
+      };
+    }
+    case "settings/careers": {
+      const next = { enabled: Boolean(action.careers.enabled), slug: action.careers.slug.trim().toLowerCase(), intro: action.careers.intro.trim() };
+      if (!validCareersSettings(next)) return state;
+      return {
+        ...state,
+        careers: next,
+        activity:
+          next.enabled !== state.careers.enabled
+            ? log(state, action.id, action.at, "settings", next.enabled ? "Careers page turned on" : "Careers page turned off", next.enabled ? `/careers/${next.slug}` : "")
+            : state.activity,
       };
     }
     case "settings/removeHoliday": {
