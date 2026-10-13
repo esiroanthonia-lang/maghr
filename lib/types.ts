@@ -224,6 +224,21 @@ export interface Goal {
   createdAt: string;
 }
 
+export const ONBOARDING_OWNERS = ["HR", "Manager", "New hire"] as const;
+export type OnboardingOwner = (typeof ONBOARDING_OWNERS)[number];
+
+/** One step in a new hire's first weeks. Only the step is tracked, never the documents or numbers themselves. */
+export interface OnboardingTask {
+  id: string;
+  employeeId: string;
+  title: string;
+  owner: OnboardingOwner;
+  dueDate: string | null;
+  doneAt: string | null;
+  doneBy: string;
+  position: number;
+}
+
 export const REVIEW_STATUSES = ["Not started", "Self review", "Manager review", "Completed"] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 

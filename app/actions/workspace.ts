@@ -46,11 +46,16 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
   "settings/update",
   "settings/addHoliday",
   "settings/removeHoliday",
+  "onboarding/start",
+  "onboarding/add",
+  "onboarding/toggle",
+  "onboarding/remove",
 ]);
 
 function friendly(message: string): string {
   if (/row-level security|permission denied|42501/i.test(message)) return "You don’t have permission to make that change.";
   if (/duplicate key|unique/i.test(message)) return "That conflicts with an existing record (for example a job code or email). Refresh and try again.";
+  if (/does not exist|schema cache|PGRST205|42P01/i.test(message)) return "This needs the latest database update. Ask your admin to run the newest file in supabase/migrations.";
   if (/check constraint|violates check/i.test(message)) return "Some details weren’t valid. Please check the form and try again.";
   return "Couldn’t save that change. Please try again.";
 }
@@ -82,6 +87,12 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
       const targetId =
         action.type === "leave/request" ? action.input.employeeId : before.leave.find((l) => l.id === action.leaveId)?.employeeId;
       if (!mine || targetId !== mine.id) return { ok: false, error: "You can only manage your own leave." };
+    }
+    // Outside HR and managers, people may only tick their own "New hire" onboarding steps.
+    if (action.type === "onboarding/toggle" && !["hr_admin", "manager"].includes(info.me.role)) {
+      const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());
+      const task = before.onboarding.find((t) => t.id === action.taskId);
+      if (!mine || !task || task.employeeId !== mine.id || task.owner !== "New hire") return { ok: false, error: "You can only tick off your own onboarding steps." };
     }
     const after = appReducer(before, action);
     if (after !== before) await writeChanges(supabase, info.orgId, before, after);

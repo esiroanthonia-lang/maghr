@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DemoState } from "../demo-data";
-import type { Activity, Candidate, Employee, Goal, Interview, Job, LeaveRequest, Note, PayrollRun, Review, SelfServiceRequest, StageChange } from "../types";
+import type { Activity, Candidate, Employee, Goal, Interview, Job, LeaveRequest, Note, OnboardingTask, PayrollRun, Review, SelfServiceRequest, StageChange } from "../types";
 
 type Row = Record<string, unknown>;
 
@@ -123,7 +123,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     rows(supabase.from("activity").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(50)),
     rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
   ]);
-  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows] = await Promise.all([
+  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows] = await Promise.all([
     rows(supabase.from("organizations").select("name, leave_allowance_days").eq("id", orgId).limit(1)),
     optionalRows(supabase.from("employee_compensation").select("employee_id, monthly_gross").eq("org_id", orgId)), // HR admins only (RLS)
     optionalRows(supabase.from("leave_requests").select("*").eq("org_id", orgId).order("start_date", { ascending: false }).limit(500)),
@@ -131,6 +131,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     optionalRows(supabase.from("reviews").select("*").eq("org_id", orgId)),
     optionalRows(supabase.from("payroll_runs").select("*").eq("org_id", orgId).order("period", { ascending: false })),
     optionalRows(supabase.from("company_holidays").select("id, date, name").eq("org_id", orgId).order("date")),
+    optionalRows(supabase.from("onboarding_tasks").select("*").eq("org_id", orgId).order("position")), // HR, managers, and the new hire (RLS)
   ]);
 
   const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
@@ -203,6 +204,16 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
       leaveAllowanceDays: n(org[0]?.leave_allowance_days, 20),
     },
     holidays: holidayRows.map((r) => ({ id: s(r.id), date: s(r.date), name: s(r.name) })),
+    onboarding: onboardingRows.map((r) => ({
+      id: s(r.id),
+      employeeId: s(r.employee_id),
+      title: s(r.title),
+      owner: s(r.owner) as OnboardingTask["owner"],
+      dueDate: (r.due_date as string | null) ?? null,
+      doneAt: (r.done_at as string | null) ?? null,
+      doneBy: s(r.done_by_name),
+      position: n(r.position),
+    })),
     talentDb: [], // MyJobMag CV database: needs MyJobMag API approval
     invitations: [],
     inbox: inbox.map<SelfServiceRequest>((r) => ({
@@ -493,6 +504,35 @@ export async function writeChanges(supabase: SupabaseClient, orgId: string, befo
   }
   for (const h of before.holidays) {
     if (!holAfter.has(h.id)) await check(supabase.from("company_holidays").delete().eq("id", h.id));
+  }
+
+  // Onboarding checklists (the database stamps who ticked a step and when)
+  const onbBefore = new Map(before.onboarding.map((t) => [t.id, t]));
+  const onbAfter = new Set(after.onboarding.map((t) => t.id));
+  const onbNew = after.onboarding.filter((t) => !onbBefore.has(t.id));
+  if (onbNew.length) {
+    await check(
+      supabase.from("onboarding_tasks").insert(
+        onbNew.map((t) => ({
+          ...(isUuid(t.id) ? { id: t.id } : {}),
+          org_id: orgId,
+          employee_id: t.employeeId,
+          title: t.title,
+          owner: t.owner,
+          due_date: t.dueDate,
+          position: t.position,
+        })),
+      ),
+    );
+  }
+  for (const t of after.onboarding) {
+    const p = onbBefore.get(t.id);
+    if (p && Boolean(p.doneAt) !== Boolean(t.doneAt)) {
+      await check(supabase.from("onboarding_tasks").update({ done_at: t.doneAt ? new Date().toISOString() : null }).eq("id", t.id));
+    }
+  }
+  for (const t of before.onboarding) {
+    if (!onbAfter.has(t.id)) await check(supabase.from("onboarding_tasks").delete().eq("id", t.id));
   }
 
   // Inbox decisions

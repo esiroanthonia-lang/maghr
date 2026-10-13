@@ -32,6 +32,9 @@ const ACTION_ROLES: [prefix: string, roles: Role[]][] = [
   // Anyone can request or cancel their own leave; the server and database check it's their own.
   ["leave/request", ["hr_admin", "manager", "recruiter", "employee"]],
   ["leave/cancel", ["hr_admin", "manager", "recruiter", "employee"]],
+  // New hires tick off their own steps; the server checks the step is theirs and marked "New hire".
+  ["onboarding/toggle", ["hr_admin", "manager", "recruiter", "employee"]],
+  ["onboarding/", ["hr_admin", "manager"]],
   ["employee/", ["hr_admin"]],
   ["leave/", ["hr_admin", "manager"]],
   ["goal/", ["hr_admin", "manager"]],

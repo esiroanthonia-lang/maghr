@@ -12,6 +12,8 @@ import type {
   GoalDepartment,
   LeaveRequest,
   LeaveType,
+  OnboardingOwner,
+  OnboardingTask,
   PayrollRun,
   ReviewStatus,
 } from "./types";
@@ -69,9 +71,71 @@ export type PeopleAction =
   | ({ type: "payroll/reopen"; runId: string } & Meta)
   | ({ type: "settings/update"; settings: CompanySettings } & Meta)
   | ({ type: "settings/addHoliday"; date: string; name: string } & Meta)
-  | ({ type: "settings/removeHoliday"; holidayId: string } & Meta);
+  | ({ type: "settings/removeHoliday"; holidayId: string } & Meta)
+  | ({ type: "onboarding/start"; employeeId: string } & Meta)
+  | ({ type: "onboarding/add"; employeeId: string; title: string; owner: OnboardingOwner; dueDate: string | null } & Meta)
+  | ({ type: "onboarding/toggle"; taskId: string; done: boolean } & Meta)
+  | ({ type: "onboarding/remove"; taskId: string } & Meta);
 
-export const PEOPLE_PREFIXES = ["employee/", "leave/", "goal/", "review/", "payroll/", "settings/"];
+export const PEOPLE_PREFIXES = ["employee/", "leave/", "goal/", "review/", "payroll/", "settings/", "onboarding/"];
+
+// ---------- onboarding ----------
+
+/**
+ * A sensible first-weeks checklist for a Nigerian company. Offsets are calendar days from the start date.
+ * MagHR only records that a step is done; bank details, RSA PIN, TIN and ID documents stay in the
+ * company's secure payroll and records process, not in this app.
+ */
+export const ONBOARDING_TEMPLATE: { title: string; owner: OnboardingOwner; offset: number }[] = [
+  { title: "Send offer letter and employment contract", owner: "HR", offset: -10 },
+  { title: "Receive signed contract", owner: "HR", offset: -5 },
+  { title: "Set up work email, laptop and system access", owner: "Manager", offset: -1 },
+  { title: "Collect payroll details (bank account, pension RSA PIN, TIN)", owner: "HR", offset: 0 },
+  { title: "Welcome, team introductions and workspace tour", owner: "Manager", offset: 0 },
+  { title: "Submit ID, guarantor forms and emergency contact", owner: "New hire", offset: 5 },
+  { title: "Read and acknowledge the employee handbook", owner: "New hire", offset: 5 },
+  { title: "Agree 30/60/90-day goals", owner: "Manager", offset: 10 },
+  { title: "First-month check-in", owner: "Manager", offset: 30 },
+];
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/** Ids for tasks created together: keeps UUIDs valid so the database can store the same id. */
+export function derivedId(base: string, i: number): string {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(base)
+    ? base.slice(0, -2) + i.toString(16).padStart(2, "0")
+    : `${base}-${i}`;
+}
+
+export function onboardingTemplate(employeeId: string, startDate: string, baseId: string): OnboardingTask[] {
+  const valid = ISO_DATE.test(startDate);
+  return ONBOARDING_TEMPLATE.map((t, i) => ({
+    id: derivedId(baseId, i),
+    employeeId,
+    title: t.title,
+    owner: t.owner,
+    dueDate: valid ? addDays(startDate, t.offset) : null,
+    doneAt: null,
+    doneBy: "",
+    position: i,
+  }));
+}
+
+export function onboardingFor(state: State, employeeId: string): OnboardingTask[] {
+  return state.onboarding.filter((t) => t.employeeId === employeeId).sort((a, b) => a.position - b.position);
+}
+
+export function onboardingProgress(state: State, employeeId: string): { done: number; total: number } {
+  const tasks = state.onboarding.filter((t) => t.employeeId === employeeId);
+  return { done: tasks.filter((t) => t.doneAt).length, total: tasks.length };
+}
+
+/** Open onboarding steps that are due on or before a date, across everyone. */
+export function overdueOnboarding(state: State, isoDate: string): OnboardingTask[] {
+  const live = new Set(state.employees.filter((e) => e.status !== "Exited").map((e) => e.id));
+  return state.onboarding.filter((t) => !t.doneAt && t.dueDate && t.dueDate <= isoDate && live.has(t.employeeId));
+}
 export const isPeopleAction = (type: string) => PEOPLE_PREFIXES.some((p) => type.startsWith(p));
 
 // ---------- helpers ----------
@@ -316,6 +380,43 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     case "settings/removeHoliday": {
       if (!state.holidays.some((h) => h.id === action.holidayId)) return state;
       return { ...state, holidays: state.holidays.filter((h) => h.id !== action.holidayId) };
+    }
+
+    case "onboarding/start": {
+      const emp = state.employees.find((e) => e.id === action.employeeId);
+      if (!emp || emp.status === "Exited" || state.onboarding.some((t) => t.employeeId === emp.id)) return state;
+      return {
+        ...state,
+        onboarding: [...state.onboarding, ...onboardingTemplate(emp.id, emp.startDate, action.id)],
+        activity: log(state, action.id, action.at, "employee", "Onboarding started", `${emp.name} · starts ${emp.startDate}`),
+      };
+    }
+    case "onboarding/add": {
+      const emp = state.employees.find((e) => e.id === action.employeeId);
+      const title = action.title.trim();
+      if (!emp || emp.status === "Exited" || title.length < 3 || title.length > 160) return state;
+      if (action.dueDate !== null && !ISO_DATE.test(action.dueDate)) return state;
+      const position = Math.max(-1, ...state.onboarding.filter((t) => t.employeeId === emp.id).map((t) => t.position)) + 1;
+      return {
+        ...state,
+        onboarding: [...state.onboarding, { id: action.id, employeeId: emp.id, title, owner: action.owner, dueDate: action.dueDate, doneAt: null, doneBy: "", position }],
+      };
+    }
+    case "onboarding/toggle": {
+      const task = state.onboarding.find((t) => t.id === action.taskId);
+      if (!task || Boolean(task.doneAt) === action.done) return state;
+      const next = state.onboarding.map((t) => (t.id === task.id ? { ...t, doneAt: action.done ? action.at : null, doneBy: action.done ? by : "" } : t));
+      const tasks = next.filter((t) => t.employeeId === task.employeeId);
+      const finished = action.done && tasks.every((t) => t.doneAt);
+      return {
+        ...state,
+        onboarding: next,
+        activity: finished ? log(state, action.id, action.at, "employee", "Onboarding complete", nameOf(state, task.employeeId)) : state.activity,
+      };
+    }
+    case "onboarding/remove": {
+      if (!state.onboarding.some((t) => t.id === action.taskId)) return state;
+      return { ...state, onboarding: state.onboarding.filter((t) => t.id !== action.taskId) };
     }
     default:
       return state;

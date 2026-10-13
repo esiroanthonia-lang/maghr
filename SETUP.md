@@ -36,7 +36,7 @@ The only keys the app uses are the Supabase **URL** and **publishable key**, whi
 
 1. Go to supabase.com → **New project**. Choose a region close to your users (e.g. *West EU (London)* or *Central EU (Frankfurt)*; check whether your data-protection review requires a specific region).
 2. Save the database password in your company password manager.
-3. Open **SQL Editor → New query**, paste the whole of `supabase/migrations/20261012000001_init.sql`, and click **Run**. You should see "Success. No rows returned".
+3. Open **SQL Editor → New query**, paste the whole of `supabase/migrations/20261012000001_init.sql`, and click **Run**. You should see "Success. No rows returned". Then do the same for every other file in `supabase/migrations`, one at a time, in name order (people, self-service, holidays, onboarding…). Run each file once; when a new one is added later, run just that one.
 4. **Authentication → Sign In / Providers → Email**: keep it enabled and keep **Confirm email** on.
 5. **Authentication → URL Configuration**:
    - **Site URL**: your live address, e.g. `https://maghr.vercel.app`

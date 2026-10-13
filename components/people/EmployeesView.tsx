@@ -10,6 +10,7 @@ import { Icon } from "../ui/Icon";
 import { Modal, useDialogBehaviour } from "../ui/Modal";
 import { useToast } from "../ui/Toast";
 import { EmployeeForm } from "./EmployeeForm";
+import { OnboardingChecklist, OnboardingPanel } from "./Onboarding";
 import { usePeople } from "./usePeople";
 
 const statusTone = (s: EmployeeStatus) => (s === "Active" ? "ok" : s === "Onboarding" ? "info" : "neutral");
@@ -134,6 +135,13 @@ function EmployeeDrawer({ employee, onClose, onEdit }: { employee: Employee; onC
                 </button>
               </form>
             ) : null}
+          </section>
+        ) : null}
+
+        {employee.status === "Onboarding" || state.onboarding.some((t) => t.employeeId === employee.id) ? (
+          <section className="drawer-section" aria-label="Onboarding">
+            <h3>Onboarding</h3>
+            <OnboardingChecklist employee={employee} mode="manage" />
           </section>
         ) : null}
 
@@ -289,6 +297,8 @@ export function EmployeesView() {
           </select>
         </div>
       </div>
+
+      <OnboardingPanel onOpen={setOpenId} />
 
       {state.employees.length === 0 ? (
         <Panel title="Directory">

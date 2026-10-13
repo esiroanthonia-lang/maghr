@@ -3,6 +3,7 @@
 // Do not replace these with real candidate or employee records.
 
 import type { CompanyHoliday } from "./holidays";
+import { onboardingTemplate } from "./people";
 import type {
   Activity,
   Candidate,
@@ -11,6 +12,7 @@ import type {
   CvProfile,
   Goal,
   LeaveRequest,
+  OnboardingTask,
   PayrollRun,
   Review,
   Employee,
@@ -39,6 +41,7 @@ export interface DemoState {
   settings: CompanySettings;
   /** Company-declared holidays (Eid, Mawlid, substitute days…). National fixed holidays are calculated. */
   holidays: CompanyHoliday[];
+  onboarding: OnboardingTask[];
 }
 
 /** Requirements per seeded vacancy. Plain sentences; the match panel looks for CV skills inside them. */
@@ -465,5 +468,15 @@ export function createDemoData(now: Date = new Date()): DemoState {
     payrollRuns,
     settings,
     holidays: [{ id: "hol-001", date: `${today.getUTCFullYear()}-12-31`, name: "Company end-of-year day" }],
+    onboarding: seedOnboarding(employees, ago),
   };
+}
+
+/** Kemi Adeyemi is starting soon: the first few steps are done. */
+function seedOnboarding(employees: Employee[], ago: (ms: number) => string): OnboardingTask[] {
+  const kemi = employees.find((e) => e.status === "Onboarding");
+  if (!kemi) return [];
+  return onboardingTemplate(kemi.id, kemi.startDate, "onb-001").map((t, i) =>
+    i < 2 ? { ...t, doneAt: ago((72 - i * 24) * 3_600_000), doneBy: "Grace Nwosu" } : t,
+  );
 }

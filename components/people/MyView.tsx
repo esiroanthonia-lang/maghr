@@ -9,6 +9,7 @@ import { Avatar, Badge, EmptyState, Notice, Panel } from "../ui/bits";
 import { Field } from "../ui/Field";
 import { Icon } from "../ui/Icon";
 import { useToast } from "../ui/Toast";
+import { OnboardingChecklist } from "./Onboarding";
 import { usePeople } from "./usePeople";
 
 const d = (iso: string) => formatDate(`${iso}T12:00:00Z`);
@@ -97,6 +98,14 @@ export function MyView() {
           </div>
         </dl>
       </section>
+
+      {state.onboarding.some((t) => t.employeeId === me.id && !t.doneAt) ? (
+        <Panel title="Your first weeks" subtitle="Tick off your steps as you go. HR and your manager handle the rest.">
+          <div className="panel-body">
+            <OnboardingChecklist employee={me} mode="self" />
+          </div>
+        </Panel>
+      ) : null}
 
       <div className="dashboard-grid">
         <div>
