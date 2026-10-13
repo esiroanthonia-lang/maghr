@@ -369,6 +369,8 @@ export function createDemoData(now: Date = new Date()): DemoState {
     managerName,
     employmentType: jobTitle.includes("Intern") ? "Internship" : "Full-time",
     exitedOn: status === "Exited" ? "2026-06-30" : null,
+    exitReason: status === "Exited" ? "Resignation" : "",
+    exitChecklist: [],
   }));
   const pay: Record<string, number> = Object.fromEntries(
     staff.map((row, i) => [`emp-${String(i + 1).padStart(3, "0")}`, row[6]] as const).filter(([, v]) => v > 0),

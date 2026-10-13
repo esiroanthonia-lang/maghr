@@ -17,12 +17,22 @@ import { OnboardingChecklist } from "./Onboarding";
 import { BankForm, JobDetailsForm, PersonalForm } from "./RecordForms";
 import { usePeople } from "./usePeople";
 import { myEmployeeEmail } from "@/lib/workspace";
+import { EmployeeDocuments } from "./EmployeeDocuments";
+import { EmployeeLetters } from "./EmployeeLetters";
 
 const statusTone = (s: EmployeeStatus) => (s === "Active" ? "ok" : s === "Onboarding" ? "info" : "neutral");
 const d = (iso: string) => (iso ? formatDate(`${iso}T12:00:00Z`) : "—");
 const dash = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "—" : v);
 
-type Tab = "overview" | "personal" | "job" | "pay" | "time" | "performance";
+type Tab = "overview" | "personal" | "job" | "pay" | "time" | "performance" | "documents" | "letters";
+const EXIT_STEPS = [
+  ["handover", "Complete handover and transfer open work"],
+  ["property", "Collect company equipment and property"],
+  ["access", "Close or transfer system access"],
+  ["pay", "Review final pay, leave and benefits"],
+  ["interview", "Complete exit interview"],
+  ["documents", "File resignation and exit documents"],
+] as const;
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
@@ -73,6 +83,10 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
   const [payDraft, setPayDraft] = useState("");
   const [rentDraft, setRentDraft] = useState("");
   const [exitDate, setExitDate] = useState<string | null>(null);
+  const [exitReasonDraft, setExitReasonDraft] = useState("Resignation");
+  const [exitChecklistDraft, setExitChecklistDraft] = useState<string[]>([]);
+  const [probationAction, setProbationAction] = useState<"extend" | "confirm" | null>(null);
+  const [probationDraft, setProbationDraft] = useState("");
 
   const e = state.employees.find((x) => x.id === employeeId);
   if (!e) {
@@ -115,6 +129,7 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
     ...(isAdmin || isSelf ? ([["pay", "Pay & bank"]] as [Tab, string][]) : []),
     ["time", "Leave & attendance"],
     ["performance", "Performance"],
+    ...(isAdmin ? ([ ["documents", "Documents"], ["letters", "Letters"] ] as [Tab, string][]) : []),
   ];
 
   const p = rec.personal;
@@ -166,11 +181,12 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
               <button type="button" className="btn small" onClick={() => setEditing("basics")}>
                 Edit basics
               </button>
-              <button type="button" className="btn small danger" onClick={() => setExitDate(todayIso ?? "")}>
+              <button type="button" className="btn small danger" onClick={() => { setExitDate(todayIso ?? ""); setExitReasonDraft("Resignation"); setExitChecklistDraft([]); }}>
                 Record exit
               </button>
             </>
           ) : null}
+          {can("employee/update") && e.status === "Exited" ? <button type="button" className="btn small" onClick={() => { setExitDate(e.exitedOn ?? todayIso ?? ""); setExitReasonDraft(e.exitReason || "Resignation"); setExitChecklistDraft(e.exitChecklist); }}>Update exit checklist</button> : null}
           <button type="button" className="btn small" onClick={() => window.print()}>
             Print profile
           </button>
@@ -178,26 +194,22 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
       </section>
 
       {exitDate !== null ? (
-        <div className="notice warn" style={{ margin: "0 0 16px", alignItems: "center", flexWrap: "wrap" }}>
-          <label htmlFor="exit-date" style={{ flex: 1, minWidth: 160 }}>
-            Last working day for {e.name}
-          </label>
-          <input id="exit-date" type="date" className="control" value={exitDate} onChange={(ev) => setExitDate(ev.target.value)} />
-          <button type="button" className="btn small" onClick={() => setExitDate(null)}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn small dark"
-            disabled={!exitDate}
-            onClick={() => {
-              act({ type: "employee/exit", employeeId: e.id, date: exitDate });
-              toast(`Exit recorded for ${e.name}.`);
+        <div className="notice warn employee-exit-workflow" style={{ margin: "0 0 16px" }}>
+          <strong>{e.status === "Exited" ? `Exit checklist · ${e.name}` : `Record exit · ${e.name}`}</strong>
+          <div className="employee-exit-fields">
+            <label className="field"><span className="label">Last working day</span><input id="exit-date" type="date" className="control" value={exitDate} onChange={(ev) => setExitDate(ev.target.value)} /></label>
+            <label className="field"><span className="label">Reason</span><select className="control" value={exitReasonDraft} onChange={(ev) => setExitReasonDraft(ev.target.value)}><option>Resignation</option><option>Termination</option><option>Contract ended</option><option>Retirement</option><option>Other</option></select></label>
+          </div>
+          <p className="stat-foot">Complete each item as it is handled. You can save progress and return to this checklist later.</p>
+          <div className="employee-exit-checklist">{EXIT_STEPS.map(([id, label]) => <label key={id}><input type="checkbox" checked={exitChecklistDraft.includes(id)} onChange={(ev) => setExitChecklistDraft((current) => ev.target.checked ? [...current, id] : current.filter((item) => item !== id))} />{label}</label>)}</div>
+          <div className="employee-document-actions">
+            <button type="button" className="btn small" onClick={() => setExitDate(null)}>Cancel</button>
+            <button type="button" className="btn small dark" disabled={!exitDate} onClick={() => {
+              act({ type: "employee/exit", employeeId: e.id, date: exitDate, reason: exitReasonDraft, checklist: exitChecklistDraft });
+              toast(e.status === "Exited" ? "Exit checklist saved." : `Exit recorded for ${e.name}.`);
               setExitDate(null);
-            }}
-          >
-            Confirm exit
-          </button>
+            }}>{e.status === "Exited" ? "Save checklist" : "Record exit"}</button>
+          </div>
         </div>
       ) : null}
 
@@ -381,6 +393,17 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
               )}
             </Section>
           ) : null}
+          {isAdmin && hasRecord && e.status !== "Exited" && j.probationEnd && !j.confirmedOn ? (
+            <Section title="Probation and confirmation">
+              <p className="stat-foot" style={{ margin: "0 0 12px" }}>Probation ends {d(j.probationEnd)}. Confirm employment or set a revised probation end date.</p>
+              <div className="employee-document-actions">
+                <button type="button" className="btn small primary" onClick={() => setProbationAction(probationAction === "confirm" ? null : "confirm")}>Confirm employment</button>
+                <button type="button" className="btn small" onClick={() => { setProbationDraft(""); setProbationAction(probationAction === "extend" ? null : "extend"); }}>Extend probation</button>
+              </div>
+              {probationAction === "confirm" ? <div className="notice info" style={{ marginTop: 12, alignItems: "center", flexWrap: "wrap" }}><span>Confirm {e.name} effective {todayIso ? d(todayIso) : "today"}?</span><button type="button" className="btn small" onClick={() => setProbationAction(null)}>Cancel</button><button type="button" className="btn small dark" disabled={!todayIso} onClick={() => { act({ type: "employee/updateJob", employeeId: e.id, job: { ...j, confirmedOn: todayIso! } }); toast(`${e.name} confirmed. You can now prepare a confirmation letter.`); setProbationAction(null); }}>Confirm</button></div> : null}
+              {probationAction === "extend" ? <form className="employee-probation-form" onSubmit={(event) => { event.preventDefault(); if (!probationDraft || probationDraft <= j.probationEnd) return toast("Choose a new date after the current probation end date."); act({ type: "employee/updateJob", employeeId: e.id, job: { ...j, probationEnd: probationDraft } }); toast(`Probation extended to ${d(probationDraft)}.`); setProbationAction(null); }}><label className="field"><span className="label">New probation end date</span><input className="control" type="date" min={j.probationEnd} value={probationDraft} onChange={(event) => setProbationDraft(event.target.value)} required /></label><button className="btn small primary" disabled={!probationDraft}>Save extension</button><button type="button" className="btn small" onClick={() => setProbationAction(null)}>Cancel</button></form> : null}
+            </Section>
+          ) : null}
           {e.status === "Onboarding" || onb.total ? (
             <Section title="Onboarding">
               <OnboardingChecklist employee={e} mode={isSelf && !isAdmin ? "self" : "manage"} />
@@ -388,6 +411,9 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
           ) : null}
         </div>
       ) : null}
+
+      {tab === "documents" && isAdmin ? <EmployeeDocuments employeeId={e.id} /> : null}
+      {tab === "letters" && isAdmin ? <EmployeeLetters employee={e} confirmedOn={j.confirmedOn} /> : null}
 
       {tab === "pay" && (isAdmin || isSelf) ? (
         <div className="profile-grid">
