@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
 import type { GoalInput } from "@/lib/people";
-import { GOAL_DEPARTMENTS, REVIEW_STATUSES, type GoalDepartment, type ReviewStatus } from "@/lib/types";
+import { GOAL_DEPARTMENTS, REVIEW_STATUSES, type GoalDepartment, type Review, type ReviewStatus } from "@/lib/types";
 import { Avatar, Badge, EmptyState, PageHeader, Panel, StatCard } from "../ui/bits";
 import { Field } from "../ui/Field";
 import { Icon } from "../ui/Icon";
@@ -65,14 +65,31 @@ export function PerformanceView() {
   const { state, act, can, now, todayIso } = usePeople();
   const toast = useToast();
   const [showGoal, setShowGoal] = useState(false);
+  const [section, setSection] = useState<"goals" | "reviews">("goals");
+  const [goalFilter, setGoalFilter] = useState<"all" | "open" | "completed">("all");
+  const [reviewFilter, setReviewFilter] = useState<"all" | ReviewStatus>("all");
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [editing, setEditing] = useState<{ employeeId: string; employeeName: string; review?: Review } | null>(null);
   const cycle = now ? `Q${Math.floor(now.getUTCMonth() / 3) + 1} ${now.getUTCFullYear()}` : null;
   const people = state.employees.filter((e) => e.status === "Active");
   const cycleReviews = cycle ? state.reviews.filter((r) => r.cycle === cycle) : [];
-  const completed = cycleReviews.filter((r) => r.status === "Completed").length;
+  const completed = people.filter((employee) => cycleReviews.some((review) => review.employeeId === employee.id && review.status === "Completed")).length;
   const avg = state.goals.length ? Math.round(state.goals.reduce((n, g) => n + g.progress, 0) / state.goals.length) : 0;
   const soon = todayIso ? state.goals.filter((g) => g.progress < 100 && g.dueDate >= todayIso && g.dueDate <= new Date(Date.parse(todayIso) + 30 * 86400000).toISOString().slice(0, 10)).length : 0;
   const editGoals = can("goal/progress");
   const editReviews = can("review/set");
+  const completedGoals = state.goals.filter((g) => g.progress >= 100).length;
+  const overdueGoals = todayIso ? state.goals.filter((g) => g.progress < 100 && g.dueDate < todayIso).length : 0;
+  const visibleGoals = [...state.goals]
+    .filter((g) => goalFilter === "all" || (goalFilter === "completed" ? g.progress >= 100 : g.progress < 100))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const visiblePeople = people.filter((employee) => {
+    const review = cycleReviews.find((item) => item.employeeId === employee.id);
+    const status = review?.status ?? "Not started";
+    const query = reviewSearch.trim().toLowerCase();
+    const matchesSearch = !query || [employee.name, employee.managerName, review?.reviewerName].some((value) => value?.toLowerCase().includes(query));
+    return matchesSearch && (reviewFilter === "all" || status === reviewFilter);
+  });
 
   function expected(g: (typeof state.goals)[number]): number {
     if (!now) return 0;
@@ -97,22 +114,36 @@ export function PerformanceView() {
         }
       />
       <div className="stats">
-        <StatCard label="Goals" icon="trend" tone="orange" value={state.goals.length} foot={`${state.goals.filter((g) => g.progress >= 100).length} completed`} />
+        <StatCard label="Goals" icon="trend" tone="orange" value={state.goals.length} foot={`${completedGoals} completed${overdueGoals ? ` · ${overdueGoals} overdue` : ""}`} />
         <StatCard label="Average progress" icon="check" tone="blue" value={`${avg}%`} foot="Across all goals" />
         <StatCard label={`Reviews ${cycle ?? ""}`} icon="people" tone="green" value={`${completed}/${people.length}`} foot="Completed this cycle" />
         <StatCard label="Due in 30 days" icon="clock" tone="purple" value={soon} foot="Goals not yet finished" />
       </div>
 
-      <Panel title="Goals" subtitle="Status compares progress with how much time has passed.">
+      <div className="tabs performance-tabs" role="tablist" aria-label="Performance sections">
+        <button type="button" role="tab" aria-selected={section === "goals"} className="tab" onClick={() => setSection("goals")}>Goals <span className="count">{state.goals.length}</span></button>
+        <button type="button" role="tab" aria-selected={section === "reviews"} className="tab" onClick={() => setSection("reviews")}>Reviews <span className="count">{people.length}</span></button>
+      </div>
+
+      {section === "goals" ? <Panel title="Goals" subtitle="Status compares progress with how much time has passed.">
+        <div className="performance-toolbar">
+          <div className="performance-filters" aria-label="Filter goals">
+            {(["all", "open", "completed"] as const).map((filter) => (
+              <button key={filter} type="button" className={`btn small ${goalFilter === filter ? "primary" : ""}`} aria-pressed={goalFilter === filter} onClick={() => setGoalFilter(filter)}>
+                {filter === "all" ? `All (${state.goals.length})` : filter === "open" ? `In progress (${state.goals.length - completedGoals})` : `Completed (${completedGoals})`}
+              </button>
+            ))}
+          </div>
+        </div>
         {state.goals.length === 0 ? (
           <EmptyState title="No goals yet">Create a few company or team goals to get started.</EmptyState>
+        ) : visibleGoals.length === 0 ? (
+          <EmptyState title="No goals in this view">Choose another filter to see more goals.</EmptyState>
         ) : (
           <ul className="goal-list">
-            {[...state.goals]
-              .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-              .map((g) => {
+            {visibleGoals.map((g) => {
                 const exp = expected(g);
-                const status = g.progress >= 100 ? "Done" : g.progress + 10 >= exp ? "On track" : "Behind";
+                const status = g.progress >= 100 ? "Done" : todayIso && g.dueDate < todayIso ? "Overdue" : g.progress + 10 >= exp ? "On track" : "Behind";
                 return (
                   <li key={g.id} className="goal">
                     <div className="goal-main">
@@ -148,86 +179,24 @@ export function PerformanceView() {
               })}
           </ul>
         )}
-      </Panel>
-
-      <Panel title={`Review cycle ${cycle ?? ""}`} subtitle={editReviews ? "Update each review as it moves along. Your name is recorded as reviewer." : "View only"}>
-        {!cycle || people.length === 0 ? (
-          <EmptyState title="No active employees to review" />
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Employee</th>
-                  <th scope="col">Manager</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Rating</th>
-                  <th scope="col">Reviewer</th>
-                </tr>
-              </thead>
-              <tbody>
-                {people.map((e) => {
-                  const r = cycleReviews.find((x) => x.employeeId === e.id);
-                  const status: ReviewStatus = r?.status ?? "Not started";
-                  const save = (next: Partial<{ status: ReviewStatus; rating: number | null }>) => {
-                    act({
-                      type: "review/set",
-                      employeeId: e.id,
-                      cycle,
-                      status: next.status ?? status,
-                      rating: next.rating !== undefined ? next.rating : (r?.rating ?? null),
-                      summary: r?.summary ?? "",
-                    });
-                    toast(`Review updated for ${e.name}.`);
-                  };
-                  return (
-                    <tr key={e.id}>
-                      <td>
-                        <span className="row-btn" style={{ cursor: "default" }}>
-                          <Avatar name={e.name} />
-                          <span className="person-info">
-                            <strong>{e.name}</strong>
-                            <span>{e.jobTitle}</span>
-                          </span>
-                        </span>
-                      </td>
-                      <td>{e.managerName || "—"}</td>
-                      <td>
-                        {editReviews ? (
-                          <select className="control" aria-label={`Review status for ${e.name}`} value={status} onChange={(ev) => save({ status: ev.target.value as ReviewStatus })}>
-                            {REVIEW_STATUSES.map((s) => (
-                              <option key={s}>{s}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <Badge tone={status === "Completed" ? "ok" : "neutral"}>{status}</Badge>
-                        )}
-                      </td>
-                      <td>
-                        {editReviews ? (
-                          <select className="control" aria-label={`Rating for ${e.name}`} value={r?.rating ?? ""} onChange={(ev) => save({ rating: ev.target.value ? Number(ev.target.value) : null })}>
-                            <option value="">—</option>
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <option key={n} value={n}>
-                                {n} / 5
-                              </option>
-                            ))}
-                          </select>
-                        ) : r?.rating ? (
-                          `${r.rating} / 5`
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td>{r?.reviewerName || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      </Panel> : <Panel title={`Review cycle ${cycle ?? ""}`} subtitle={editReviews ? "Review progress, ratings and notes for each active employee." : "View only"}>
+        <div className="performance-toolbar review-toolbar">
+          <label className="review-search"><Icon name="search" size={15} /><input value={reviewSearch} onChange={(event) => setReviewSearch(event.target.value)} placeholder="Search employees, managers…" aria-label="Search reviews" /></label>
+          <select className="control" aria-label="Filter reviews by status" value={reviewFilter} onChange={(event) => setReviewFilter(event.target.value as "all" | ReviewStatus)}>
+            <option value="all">All statuses</option>{REVIEW_STATUSES.map((status) => <option key={status}>{status}</option>)}
+          </select>
+        </div>
+        {!cycle || people.length === 0 ? <EmptyState title="No active employees to review" /> : visiblePeople.length === 0 ? <EmptyState title="No matching reviews">Try a different search or status.</EmptyState> : (
+          <div className="table-wrap"><table className="data-table"><thead><tr><th scope="col">Employee</th><th scope="col">Manager</th><th scope="col">Status</th><th scope="col">Rating</th><th scope="col">Reviewer</th><th scope="col">Notes</th>{editReviews ? <th scope="col">Action</th> : null}</tr></thead><tbody>
+            {visiblePeople.map((employee) => {
+              const review = cycleReviews.find((item) => item.employeeId === employee.id);
+              const status = review?.status ?? "Not started";
+              return <tr key={employee.id}><td><span className="row-btn" style={{ cursor: "default" }}><Avatar name={employee.name} /><span className="person-info"><strong>{employee.name}</strong><span>{employee.jobTitle}</span></span></span></td><td>{employee.managerName || "—"}</td><td><Badge tone={status === "Completed" ? "ok" : "neutral"}>{status}</Badge></td><td>{review?.rating ? `${review.rating} / 5` : "—"}</td><td>{review?.reviewerName || "—"}</td><td className="review-note" title={review?.summary || undefined}>{review?.summary || "—"}</td>{editReviews ? <td><button className="btn small" type="button" onClick={() => setEditing({ employeeId: employee.id, employeeName: employee.name, review })}>{review ? "Edit review" : "Start review"}</button></td> : null}</tr>;
+            })}
+          </tbody></table></div>
         )}
-      </Panel>
+      </Panel>}
+
       <p className="stat-foot" style={{ marginTop: 10 }}>
         Ratings are set by people. MagHR never scores staff automatically. {pluralise(state.reviews.filter((r) => r.status === "Completed").length, "review")} completed across all cycles.
       </p>
@@ -244,6 +213,27 @@ export function PerformanceView() {
           />
         </Modal>
       ) : null}
+      {editing ? <Modal title={`${editing.review ? "Edit" : "Start"} review · ${editing.employeeName}`} onClose={() => setEditing(null)}>
+        <ReviewForm review={editing.review} onCancel={() => setEditing(null)} onSubmit={(status, rating, summary) => {
+          act({ type: "review/set", employeeId: editing.employeeId, cycle: cycle!, status, rating, summary });
+          toast(`Review updated for ${editing.employeeName}.`);
+          setEditing(null);
+        }} />
+      </Modal> : null}
     </>
   );
+}
+
+function ReviewForm({ review, onSubmit, onCancel }: { review?: Review; onSubmit: (status: ReviewStatus, rating: number | null, summary: string) => void; onCancel: () => void }) {
+  const [status, setStatus] = useState<ReviewStatus>(review?.status ?? "Not started");
+  const [rating, setRating] = useState(review?.rating ? String(review.rating) : "");
+  const [summary, setSummary] = useState(review?.summary ?? "");
+  return <form onSubmit={(event) => { event.preventDefault(); onSubmit(status, rating ? Number(rating) : null, summary.trim()); }}>
+    <div className="form-grid">
+      <Field label="Review status">{(props) => <select {...props} value={status} onChange={(event) => setStatus(event.target.value as ReviewStatus)}>{REVIEW_STATUSES.map((item) => <option key={item}>{item}</option>)}</select>}</Field>
+      <Field label="Rating">{(props) => <select {...props} value={rating} onChange={(event) => setRating(event.target.value)}><option value="">No rating</option>{[1,2,3,4,5].map((item) => <option key={item} value={item}>{item} / 5</option>)}</select>}</Field>
+      <Field label="Review notes" full hint="Add a short summary of the discussion and agreed next steps.">{(props) => <textarea {...props} rows={4} value={summary} onChange={(event) => setSummary(event.target.value)} />}</Field>
+    </div>
+    <div className="modal-actions"><button type="button" className="btn" onClick={onCancel}>Cancel</button><button type="submit" className="btn primary">Save review</button></div>
+  </form>;
 }
