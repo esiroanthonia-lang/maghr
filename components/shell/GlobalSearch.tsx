@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useDemoStore } from "@/lib/store";
 import { Icon } from "../ui/Icon";
 import { useUi } from "./UiContext";
@@ -57,6 +57,18 @@ export function GlobalSearch() {
 
   const showList = open && query.trim().length >= 2;
 
+  // Ctrl/⌘ + K jumps to search from anywhere.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        document.getElementById(`${listId}-input`)?.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [listId]);
+
   return (
     <div
       className="search-form"
@@ -72,7 +84,7 @@ export function GlobalSearch() {
       <input
         id={`${listId}-input`}
         className="search"
-        placeholder="Search candidates, jobs…"
+        placeholder="Search people and jobs"
         autoComplete="off"
         role="combobox"
         aria-expanded={showList}
@@ -100,6 +112,9 @@ export function GlobalSearch() {
           }
         }}
       />
+      <span className="kbd-hint" aria-hidden="true">
+        Ctrl K
+      </span>
       {showList ? (
         <ul id={listId} role="listbox" className="search-results" aria-label="Search results">
           {results.length === 0 ? (

@@ -4,27 +4,14 @@ import { pluralise } from "@/lib/format";
 import { averageTimeToHire, formatNaira, headcountByDepartment, periodLabel, toCsv } from "@/lib/people";
 import { funnelCounts, sourceCounts } from "@/lib/recruitment";
 import { LEAVE_TYPES } from "@/lib/types";
-import { EmptyState, PageHeader, Panel, StatCard } from "../ui/bits";
+import { PageHeader, Panel, StatCard } from "../ui/bits";
+import { BarList } from "../ui/Charts";
 import { downloadText } from "../ui/download";
 import { Icon } from "../ui/Icon";
 import { usePeople } from "./usePeople";
 
-function Bars({ rows, format = String }: { rows: { label: string; value: number }[]; format?: (n: number) => string }) {
-  const max = Math.max(1, ...rows.map((r) => r.value));
-  if (!rows.length) return <EmptyState title="No data yet" />;
-  return (
-    <ul className="source-bars">
-      {rows.map((r) => (
-        <li key={r.label}>
-          <span>{r.label}</span>
-          <span className="bar" aria-hidden="true">
-            <i style={{ width: `${Math.round((r.value / max) * 100)}%` }} />
-          </span>
-          <span>{format(r.value)}</span>
-        </li>
-      ))}
-    </ul>
-  );
+function Bars({ rows, caption, format }: { rows: { label: string; value: number }[]; caption: string; format?: (n: number) => string }) {
+  return <BarList data={rows} caption={caption} format={format} />;
 }
 
 export function ReportsView() {
@@ -96,20 +83,20 @@ export function ReportsView() {
 
       <div className="report-grid">
         <Panel title="Headcount by department" subtitle="Current staff">
-          <Bars rows={headcountByDepartment(state).map((d) => ({ label: d.department, value: d.count }))} />
+          <Bars caption="Headcount by department" rows={headcountByDepartment(state).map((d) => ({ label: d.department, value: d.count }))} />
         </Panel>
         <Panel title="Hiring funnel" subtitle="Candidates who reached each stage">
-          <Bars rows={funnel.map((f) => ({ label: f.stage, value: f.reached }))} />
+          <Bars caption="Candidates reaching each stage" rows={funnel.map((f) => ({ label: f.stage, value: f.reached }))} />
         </Panel>
         <Panel title="Where candidates come from" subtitle="By source, all time">
-          <Bars rows={sourceCounts(state.candidates).map((s) => ({ label: s.source, value: s.count }))} />
+          <Bars caption="Candidates by source" rows={sourceCounts(state.candidates).map((s) => ({ label: s.source, value: s.count }))} />
         </Panel>
         <Panel title={`Leave taken ${year ?? ""}`} subtitle="Approved working days by type">
-          <Bars rows={leaveByType} format={(n) => `${n}`} />
+          <Bars caption="Leave days taken by type" rows={leaveByType} />
         </Panel>
         {isAdmin ? (
           <Panel title="Payroll trend" subtitle="Approved gross totals, last 6 runs (HR admins only)">
-            <Bars rows={runs.map((r) => ({ label: periodLabel(r.period), value: r.grossTotal }))} format={(n) => formatNaira(n).replace(/\.00$/, "")} />
+            <Bars caption="Approved payroll gross by month" rows={runs.map((r) => ({ label: periodLabel(r.period), value: r.grossTotal }))} format={(n) => formatNaira(n)} />
           </Panel>
         ) : null}
       </div>

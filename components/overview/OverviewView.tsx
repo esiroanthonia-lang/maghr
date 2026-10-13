@@ -7,7 +7,8 @@ import { funnelCounts, isActiveCandidate, sourceCounts, upcomingInterviews } fro
 import { useDemoStore, useNow } from "@/lib/store";
 import type { ActivityKind } from "@/lib/types";
 import { useUi } from "../shell/UiContext";
-import { Avatar, EmptyState, PageHeader, Panel, RelativeTime, StageBadge, StatCard } from "../ui/bits";
+import { Avatar, EmptyState, Panel, RelativeTime, StageBadge } from "../ui/bits";
+import { BarList, TrendChart } from "../ui/Charts";
 import { Icon } from "../ui/Icon";
 
 const DOT: Record<ActivityKind, string> = {
@@ -28,12 +29,11 @@ const DOT: Record<ActivityKind, string> = {
 };
 
 export function OverviewView() {
-  const { state } = useDemoStore();
+  const { state, workspace } = useDemoStore();
   const { openDialog, openProfile } = useUi();
   const now = useNow();
 
   const openJobs = state.jobs.filter((j) => j.status === "Open");
-  const departments = new Set(openJobs.map((j) => j.department)).size;
   const active = state.candidates.filter((c) => c.jobId && isActiveCandidate(c));
   const weekAgo = now ? now.getTime() - 7 * 24 * 3600 * 1000 : 0;
   const newThisWeek = now ? state.candidates.filter((c) => new Date(c.createdAt).getTime() >= weekAgo).length : null;
@@ -42,38 +42,81 @@ export function OverviewView() {
   const recent = [...state.candidates].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
   const interviews = now ? upcomingInterviews(state, now).slice(0, 3) : [];
   const sources = sourceCounts(state.candidates);
-  const maxSource = Math.max(1, sources[0]?.count ?? 1);
   const headcount = state.employees.filter((e) => e.status !== "Exited").length;
   const onboarding = state.employees.filter((e) => e.status === "Onboarding").length;
   const outToday = now ? onLeaveOn(state, now.toISOString().slice(0, 10)).length : 0;
   const pendingLeave = state.leave.filter((l) => l.status === "Pending").length;
+  const firstName = workspace.mode === "live" ? workspace.me.name.split(" ")[0] : "";
+  const weekly = now
+    ? Array.from({ length: 8 }, (_, i) => {
+        const end = now.getTime() - (7 - i) * 7 * 86400000;
+        const start = end - 7 * 86400000;
+        return {
+          label: i === 7 ? "This week" : new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(end)),
+          value: state.candidates.filter((c) => {
+            const t = Date.parse(c.createdAt);
+            return t > start && t <= end;
+          }).length,
+        };
+      })
+    : null;
   const toReview = state.candidates.filter((c) => c.stage === "Applied" && c.jobId).length;
 
   return (
     <>
-      <PageHeader
-        eyebrow={now ? longDate(now) : " "}
-        title={`${now ? greeting(now) : "Welcome"}, HR team`}
-        intro="Here’s what’s happening with your people today."
-        actions={
-          <button type="button" className="btn primary" onClick={() => openDialog({ type: "job" })}>
-            <Icon name="plus" size={15} /> Create a job
-          </button>
-        }
-      />
-
-      <div className="stats">
-        <StatCard label="Employees" icon="people" tone="orange" value={headcount} foot={`${onboarding} onboarding`} />
-        <StatCard label="Open positions" icon="briefcase" tone="blue" value={openJobs.length} foot={`Across ${pluralise(departments, "department")}`} />
-        <StatCard label="On leave today" icon="calendar" tone="green" value={outToday} foot={pendingLeave ? `${pluralise(pendingLeave, "request")} need a decision` : "No requests waiting"} />
-        <StatCard
-          label="Active applicants"
-          icon="userPlus"
-          tone="purple"
-          value={active.length}
-          foot={newThisWeek === null ? "In open pipelines" : <><span className="up">↑ {newThisWeek}</span> in the last 7 days</>}
-        />
-      </div>
+      <section className="today" aria-labelledby="today-title">
+        <div>
+          <p className="today-date">{now ? longDate(now) : "\u00a0"}</p>
+          <h1 id="today-title">
+            {now ? greeting(now) : "Welcome"}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <dl className="today-facts">
+            <div>
+              <dt>Employees</dt>
+              <dd>{headcount}</dd>
+            </div>
+            <div>
+              <dt>Out today</dt>
+              <dd>{outToday}</dd>
+            </div>
+            <div>
+              <dt>Open roles</dt>
+              <dd>{openJobs.length}</dd>
+            </div>
+            <div>
+              <dt>Active applicants</dt>
+              <dd>{active.length}</dd>
+            </div>
+            <div>
+              <dt>Leave to decide</dt>
+              <dd>{pendingLeave}</dd>
+            </div>
+            <div>
+              <dt>Onboarding</dt>
+              <dd>{onboarding}</dd>
+            </div>
+          </dl>
+          <div className="today-actions">
+            <button type="button" className="btn primary" onClick={() => openDialog({ type: "job" })}>
+              <Icon name="plus" size={15} /> Create a job
+            </button>
+            <button type="button" className="btn" onClick={() => openDialog({ type: "candidate" })}>
+              Add candidate
+            </button>
+            <Link className="btn" href="/leave">
+              Review leave
+            </Link>
+          </div>
+        </div>
+        <div className="today-chart">
+          <h2>Applications per week</h2>
+          <p>
+            {newThisWeek === null ? "Last 8 weeks" : `${pluralise(newThisWeek, "new application")} in the last 7 days`}
+          </p>
+          {weekly ? <TrendChart data={weekly} caption="Applications per week, last 8 weeks" tone="dark" height={170} /> : null}
+        </div>
+      </section>
 
       <div className="dashboard-grid">
         <div>
@@ -142,46 +185,11 @@ export function OverviewView() {
           </Panel>
 
           <Panel id="sources" title="Where applicants come from" subtitle="Every applicant is tagged with the channel that brought them">
-            <ul className="source-bars">
-              {sources.map((x) => (
-                <li key={x.source}>
-                  <span>{x.source}</span>
-                  <span className="bar" aria-hidden="true">
-                    <i style={{ width: `${Math.round((x.count / maxSource) * 100)}%` }} />
-                  </span>
-                  <span>{x.count}</span>
-                </li>
-              ))}
-            </ul>
+            <BarList caption="Applicants by source" data={sources.map((x) => ({ label: x.source, value: x.count }))} />
           </Panel>
         </div>
 
         <div className="right-stack">
-          <Panel title="Quick actions" subtitle="Get things done faster">
-            <div className="quick-grid">
-              <button type="button" className="quick" onClick={() => openDialog({ type: "job" })}>
-                <span className="quick-icon"><Icon name="plus" size={16} /></span>
-                <strong>Create job opening</strong>
-                <span>Start a new vacancy</span>
-              </button>
-              <button type="button" className="quick" onClick={() => openDialog({ type: "candidate" })}>
-                <span className="quick-icon"><Icon name="userPlus" size={16} /></span>
-                <strong>Add candidate</strong>
-                <span>Build your talent pool</span>
-              </button>
-              <Link className="quick" href="/recruitment?tab=pipeline&stage=Applied&view=table">
-                <span className="quick-icon"><Icon name="doc" size={16} /></span>
-                <strong>Review applications</strong>
-                <span>{pluralise(toReview, "new application")}</span>
-              </Link>
-              <Link className="quick" href="/leave">
-                <span className="quick-icon"><Icon name="calendar" size={16} /></span>
-                <strong>Review leave</strong>
-                <span>{pluralise(pendingLeave, "request")} pending</span>
-              </Link>
-            </div>
-          </Panel>
-
           <Panel
             title="Upcoming interviews"
             subtitle="Scheduled interviews"

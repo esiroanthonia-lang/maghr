@@ -7,6 +7,7 @@ import { signOut } from "@/app/actions/auth";
 import { useDemoStore } from "@/lib/store";
 import { ROLE_LABELS } from "@/lib/workspace";
 import { Icon } from "../ui/Icon";
+import { Wordmark } from "../ui/Logo";
 import { useToast } from "../ui/Toast";
 
 function NavLink({ item, pathname, pill }: { item: NavItem; pathname: string; pill?: number }) {
@@ -40,20 +41,15 @@ export function Sidebar() {
   return (
     <aside className="sidebar" aria-label="Main navigation">
       <div className="brand">
-        <div className="brand-mark" aria-hidden="true">
-          M
-        </div>
-        <div className="brand-word">
-          MagHR<small>BY MYJOBMAG</small>
-        </div>
+        <Wordmark light />
       </div>
-      <div className="nav-label">WORKSPACE</div>
+      <div className="nav-label">Workspace</div>
       <nav className="nav" aria-label="Workspace">
         {workspaceNav.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} pill={item.href === "/recruitment" ? newApplications : undefined} />
         ))}
       </nav>
-      <div className="nav-label">MANAGE</div>
+      <div className="nav-label">Manage</div>
       <nav className="nav" aria-label="Manage">
         {MANAGE_NAV.map((item) => (
           <NavLink key={item.href} item={live && item.href === "/settings" ? { ...item, ready: true } : item} pathname={pathname} />
