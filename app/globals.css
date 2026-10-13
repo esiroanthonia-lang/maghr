@@ -750,3 +750,111 @@ h1, h2, h3, .stat-num, .brand, .wordmark, .funnel .stage-num, .mini-stats strong
 .today-compact .today-facts { justify-content: end; }
 .me-days { font-family: var(--font-head); font-size: 24px; padding: 4px 0; }
 @media (max-width: 1180px) { .today-compact { grid-template-columns: 1fr; } .today-compact .today-facts { justify-content: start; } }
+
+/* ---------- Holidays ---------- */
+.holidays { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.holidays-h { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 10px; }
+.holiday-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 2px; }
+.holiday-list li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.holiday-list time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.holiday-actions { display: inline-flex; gap: 10px; align-items: center; }
+.holiday-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.holiday-form .control { flex: 1 1 140px; }
+@media (max-width: 900px) { .holidays { grid-template-columns: 1fr; } }
+
+/* Primary buttons: a slightly deeper orange so white text meets WCAG AA (4.5:1). */
+.btn.primary, .today .btn.primary { background: #c8501d; border-color: #c8501d; }
+.btn.primary:hover, .today .btn.primary:hover { background: #b8461a; border-color: #b8461a; }
+
+/* Theme toggle */
+.theme-toggle svg { display: block; }
+
+/* =====================================================================
+   Dark theme. Set on <html data-theme="dark"> by a tiny script that
+   follows the device setting unless the person picks a theme.
+   ===================================================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0d1821;
+  --surface: #13212c;
+  --surface-2: #182a37;
+  --sunken: #0f1c26;
+  --line: #223545;
+  --line-2: #2c4253;
+  --ink: #e7eef3;
+  --ink-2: #b9c7d1;
+  --muted: #8ea1af;
+  --accent-ink: #ff9a66;
+  --accent-wash: rgba(224, 96, 42, 0.16);
+  --chart: #f0773d;
+  --navy: #0a141c;
+  --navy-2: #13222e;
+  --navy-line: #1d2f3d;
+  --blue: #8bb0ff; --blue-soft: rgba(53, 104, 212, 0.2);
+  --green: #6fd3a8; --green-soft: rgba(22, 132, 91, 0.22);
+  --purple: #c3a9ff; --purple-soft: rgba(121, 85, 199, 0.24);
+  --teal: #6fd0d8; --teal-soft: rgba(19, 128, 138, 0.24);
+  --amber: #f3b46d; --amber-soft: rgba(168, 90, 27, 0.26);
+  --red: #ff8f86; --red-soft: rgba(180, 55, 47, 0.26);
+  --grey-soft: rgba(255, 255, 255, 0.07);
+  --orange-soft: var(--accent-wash);
+  --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -10px rgba(0, 0, 0, 0.6);
+}
+[data-theme="dark"] body { background: var(--canvas); color: var(--ink); }
+[data-theme="dark"] .sidebar { border-right: 1px solid var(--navy-line); }
+[data-theme="dark"] .topbar { background: rgba(13, 24, 33, 0.85); }
+[data-theme="dark"] .crumb strong, [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, [data-theme="dark"] .stat-num,
+[data-theme="dark"] .person-info strong, [data-theme="dark"] .cell-strong, [data-theme="dark"] .data-table td:first-child, [data-theme="dark"] .empty strong { color: var(--ink); }
+[data-theme="dark"] .panel, [data-theme="dark"] .stats, [data-theme="dark"] .job-card, [data-theme="dark"] .card,
+[data-theme="dark"] .modal, [data-theme="dark"] .drawer, [data-theme="dark"] .modal-head, [data-theme="dark"] .drawer-head,
+[data-theme="dark"] .auth-card, [data-theme="dark"] .search-results, [data-theme="dark"] .payslip, [data-theme="dark"] .quick { background: var(--surface); border-color: var(--line); color: var(--ink); }
+[data-theme="dark"] .today { background: #152837; border: 1px solid #1f3647; }
+[data-theme="dark"] .data-table th { background: var(--surface-2); }
+[data-theme="dark"] .data-table td { color: var(--ink-2); border-color: var(--line); }
+[data-theme="dark"] .data-table tbody tr:hover, [data-theme="dark"] .barlist li.is-hover, [data-theme="dark"] .search-results li.active { background: var(--surface-2); }
+[data-theme="dark"] .btn { background: var(--surface-2); border-color: var(--line-2); color: var(--ink); }
+[data-theme="dark"] .btn:hover { background: #1f3444; border-color: #375065; }
+[data-theme="dark"] .btn.primary { background: #c8501d; border-color: #c8501d; color: #fff; }
+[data-theme="dark"] .btn.primary:hover { background: #d65d27; border-color: #d65d27; }
+[data-theme="dark"] .btn.dark { background: #2a4558; border-color: #2a4558; color: #fff; }
+[data-theme="dark"] .btn.dark:hover { background: #335368; border-color: #335368; }
+[data-theme="dark"] .control, [data-theme="dark"] .field input, [data-theme="dark"] .field select, [data-theme="dark"] .field textarea,
+[data-theme="dark"] .search, [data-theme="dark"] .data-table select, [data-theme="dark"] .card select, [data-theme="dark"] .inline-form textarea { background: var(--sunken); border-color: var(--line-2); color: var(--ink); }
+[data-theme="dark"] .kbd-hint { background: var(--surface-2); border-color: var(--line-2); }
+[data-theme="dark"] .icon-button, [data-theme="dark"] .close { background: var(--surface-2); border-color: var(--line-2); color: var(--ink-2); }
+[data-theme="dark"] .column { background: var(--sunken); }
+[data-theme="dark"] .column-head .n { background: var(--surface-2); }
+[data-theme="dark"] .column-empty { border-color: var(--line-2); }
+[data-theme="dark"] .stage-tile, [data-theme="dark"] .mini-stats div, [data-theme="dark"] .note, [data-theme="dark"] .match { background: var(--surface-2); border-color: var(--line); }
+[data-theme="dark"] .bar, [data-theme="dark"] .mini-funnel { background: #263b4a; }
+[data-theme="dark"] .panel-head, [data-theme="dark"] .drawer-section, [data-theme="dark"] .list-row, [data-theme="dark"] .goal,
+[data-theme="dark"] .holiday-list li, [data-theme="dark"] .tabs, [data-theme="dark"] .job-card-foot { border-color: var(--line); }
+[data-theme="dark"] .tab[aria-selected="true"] { color: var(--ink); }
+[data-theme="dark"] .view-toggle { background: var(--sunken); border-color: var(--line-2); }
+[data-theme="dark"] .view-toggle button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); }
+[data-theme="dark"] .channel-option, [data-theme="dark"] .review-row button { background: var(--sunken); border-color: var(--line-2); color: var(--ink-2); }
+[data-theme="dark"] .channel-option.on { background: var(--accent-wash); border-color: var(--accent); }
+[data-theme="dark"] .notice { background: rgba(53, 104, 212, 0.16); color: #b8ccff; }
+[data-theme="dark"] .notice.warn { background: rgba(168, 90, 27, 0.2); color: #f6c38a; }
+[data-theme="dark"] .auth-page { background: var(--canvas); }
+[data-theme="dark"] .auth-error { color: #ffb0a9; }
+[data-theme="dark"] .auth-message { color: #9be3c2; }
+[data-theme="dark"] .wordmark { color: var(--ink); }
+[data-theme="dark"] .trend-grid { stroke: #223545; }
+[data-theme="dark"] .trend-base { stroke: #2c4253; }
+[data-theme="dark"] .trend-dot { stroke: var(--surface); }
+[data-theme="dark"] .trend-tip strong, [data-theme="dark"] .barlist-value { color: var(--ink); }
+[data-theme="dark"] .barlist-label { color: var(--ink-2); }
+[data-theme="dark"] .stars .off, [data-theme="dark"] .star-input button { color: #3a5162; }
+[data-theme="dark"] .star-input button.on { color: #e3a008; }
+[data-theme="dark"] .p0 { background: rgba(224, 96, 42, 0.18); color: #ffb08a; }
+[data-theme="dark"] .p1 { background: rgba(53, 104, 212, 0.2); color: #a9c2ff; }
+[data-theme="dark"] .p2 { background: rgba(22, 132, 91, 0.22); color: #8fe0bb; }
+[data-theme="dark"] .p3 { background: rgba(121, 85, 199, 0.24); color: #cdb8ff; }
+[data-theme="dark"] .p4 { background: rgba(19, 128, 138, 0.24); color: #8fdde4; }
+[data-theme="dark"] .avatar { background: rgba(224, 96, 42, 0.2); color: #ffb08a; }
+[data-theme="dark"] .skill, [data-theme="dark"] .channel-chip, [data-theme="dark"] .demo-chip { background: rgba(255, 255, 255, 0.07); color: var(--ink-2); }
+[data-theme="dark"] .skill.hit { background: var(--accent-wash); color: #ffb08a; }
+[data-theme="dark"] .data-table tbody tr, [data-theme="dark"] .data-table th { border-color: var(--line); }
+[data-theme="dark"] .demo-banner { color: var(--muted); }
+[data-theme="dark"] .search-form svg { color: var(--muted); }

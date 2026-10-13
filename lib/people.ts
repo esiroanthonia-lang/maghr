@@ -3,6 +3,7 @@
 // the same rules again (see supabase/migrations/20261013000001_people.sql).
 
 import type { DemoState } from "./demo-data";
+import { holidaysBetween } from "./holidays";
 import type {
   CompanySettings,
   Department,
@@ -66,7 +67,9 @@ export type PeopleAction =
   | ({ type: "payroll/submit"; runId: string } & Meta)
   | ({ type: "payroll/approve"; runId: string } & Meta)
   | ({ type: "payroll/reopen"; runId: string } & Meta)
-  | ({ type: "settings/update"; settings: CompanySettings } & Meta);
+  | ({ type: "settings/update"; settings: CompanySettings } & Meta)
+  | ({ type: "settings/addHoliday"; date: string; name: string } & Meta)
+  | ({ type: "settings/removeHoliday"; holidayId: string } & Meta);
 
 export const PEOPLE_PREFIXES = ["employee/", "leave/", "goal/", "review/", "payroll/", "settings/"];
 export const isPeopleAction = (type: string) => PEOPLE_PREFIXES.some((p) => type.startsWith(p));
@@ -75,17 +78,25 @@ export const isPeopleAction = (type: string) => PEOPLE_PREFIXES.some((p) => type
 
 const DAY = 86_400_000;
 
-/** Working days (Mon–Fri) between two YYYY-MM-DD dates, inclusive. Public holidays are not deducted. */
-export function workingDays(start: string, end: string): number {
+/**
+ * Working days (Mon–Fri) between two YYYY-MM-DD dates, inclusive, minus any holidays given.
+ * Pass holidays from holidaysForState() so Nigerian public and company holidays are skipped.
+ */
+export function workingDays(start: string, end: string, holidays: ReadonlySet<string> | Map<string, string> = new Set()): number {
   const a = Date.parse(`${start}T00:00:00Z`);
   const b = Date.parse(`${end}T00:00:00Z`);
-  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 0;
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a || b - a > 400 * DAY) return 0;
   let n = 0;
   for (let t = a; t <= b; t += DAY) {
     const d = new Date(t).getUTCDay();
-    if (d !== 0 && d !== 6) n++;
+    if (d !== 0 && d !== 6 && !holidays.has(new Date(t).toISOString().slice(0, 10))) n++;
   }
   return n;
+}
+
+/** National + company holidays between two dates, for this workspace. */
+export function holidaysForState(state: State, start: string, end: string): Map<string, string> {
+  return holidaysBetween(start, end, state.holidays);
 }
 
 export function isValidPeriod(p: string): boolean {
@@ -160,7 +171,7 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     case "leave/request": {
       const { input } = action;
       const emp = state.employees.find((e) => e.id === input.employeeId);
-      const days = workingDays(input.startDate, input.endDate);
+      const days = workingDays(input.startDate, input.endDate, holidaysForState(state, input.startDate, input.endDate));
       if (!emp || emp.status === "Exited" || days < 1 || days > 120) return state;
       const req: LeaveRequest = {
         id: action.id,
@@ -291,6 +302,20 @@ export function peopleReducer(state: State, action: PeopleAction): State {
         settings: { companyName: name, leaveAllowanceDays: days },
         activity: log(state, action.id, action.at, "settings", "Company settings updated", name),
       };
+    }
+    case "settings/addHoliday": {
+      const name = action.name.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(action.date) || name.length < 2 || name.length > 80) return state;
+      if (state.holidays.some((h) => h.date === action.date)) return state;
+      return {
+        ...state,
+        holidays: [...state.holidays, { id: action.id, date: action.date, name }].sort((a, b) => a.date.localeCompare(b.date)),
+        activity: log(state, action.id, action.at, "settings", "Holiday added", `${name} · ${action.date}`),
+      };
+    }
+    case "settings/removeHoliday": {
+      if (!state.holidays.some((h) => h.id === action.holidayId)) return state;
+      return { ...state, holidays: state.holidays.filter((h) => h.id !== action.holidayId) };
     }
     default:
       return state;

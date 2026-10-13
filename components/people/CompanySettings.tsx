@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { formatDate } from "@/lib/format";
+import { nigeriaFixedHolidays } from "@/lib/holidays";
 import { Panel } from "../ui/bits";
 import { useToast } from "../ui/Toast";
 import { usePeople } from "./usePeople";
@@ -49,6 +51,92 @@ export function CompanySettingsPanel() {
           </div>
         ) : null}
       </form>
+    </Panel>
+  );
+}
+
+export function HolidaysPanel() {
+  const { state, act, can, year } = usePeople();
+  const toast = useToast();
+  const [date, setDate] = useState("");
+  const [name, setName] = useState("");
+  const editable = can("settings/addHoliday");
+  const y = year ?? new Date().getUTCFullYear();
+  const national = [...nigeriaFixedHolidays(y), ...nigeriaFixedHolidays(y + 1)];
+  const upcomingCompany = state.holidays.filter((h) => h.date >= `${y}-01-01`);
+
+  return (
+    <Panel title="Public holidays" subtitle="Skipped automatically when counting leave days">
+      <div className="panel-body holidays">
+        <div>
+          <h3 className="holidays-h">National holidays (calculated)</h3>
+          <ul className="holiday-list">
+            {national.map((h) => (
+              <li key={h.date}>
+                <span>{h.name}</span>
+                <time dateTime={h.date}>{formatDate(`${h.date}T12:00:00Z`)}</time>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="holidays-h">Company and announced holidays</h3>
+          <p className="stat-foot" style={{ marginTop: 0 }}>
+            Add Eid-el-Fitr, Eid-el-Kabir and Eid-el-Maulud once the Federal Government announces the dates, plus any substitute days or company days off.
+          </p>
+          {upcomingCompany.length ? (
+            <ul className="holiday-list">
+              {upcomingCompany.map((h) => (
+                <li key={h.id}>
+                  <span>{h.name}</span>
+                  <span className="holiday-actions">
+                    <time dateTime={h.date}>{formatDate(`${h.date}T12:00:00Z`)}</time>
+                    {editable ? (
+                      <button
+                        type="button"
+                        className="link-btn"
+                        aria-label={`Remove ${h.name}`}
+                        onClick={() => {
+                          act({ type: "settings/removeHoliday", holidayId: h.id });
+                          toast(`${h.name} removed.`);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="stat-foot">None added yet.</p>
+          )}
+          {editable ? (
+            <form
+              className="holiday-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!date || name.trim().length < 2) return toast("Enter a date and a name for the holiday.");
+                if (state.holidays.some((h) => h.date === date)) return toast("There’s already a holiday on that date.");
+                act({ type: "settings/addHoliday", date, name: name.trim() });
+                toast(`${name.trim()} added.`);
+                setDate("");
+                setName("");
+              }}
+            >
+              <label className="sr-only" htmlFor="hol-name">
+                Holiday name
+              </label>
+              <input id="hol-name" className="control" placeholder="e.g. Eid-el-Fitr" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+              <label className="sr-only" htmlFor="hol-date">
+                Date
+              </label>
+              <input id="hol-date" className="control" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <button className="btn">Add holiday</button>
+            </form>
+          ) : null}
+        </div>
+      </div>
     </Panel>
   );
 }

@@ -44,6 +44,8 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
   "payroll/approve",
   "payroll/reopen",
   "settings/update",
+  "settings/addHoliday",
+  "settings/removeHoliday",
 ]);
 
 function friendly(message: string): string {

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
-import { leaveBalance, onLeaveOn, toCsv, workingDays, type LeaveInput } from "@/lib/people";
+import { holidaysForState, leaveBalance, onLeaveOn, toCsv, workingDays, type LeaveInput } from "@/lib/people";
 import { LEAVE_STATUSES, LEAVE_TYPES, type LeaveStatus, type LeaveType } from "@/lib/types";
 import { Avatar, Badge, EmptyState, Notice, PageHeader, Panel, RelativeTime, StatCard } from "../ui/bits";
 import { downloadText } from "../ui/download";
@@ -21,7 +21,8 @@ function LeaveForm({ onSubmit, onCancel }: { onSubmit: (input: LeaveInput) => vo
   const today = new Date().toISOString().slice(0, 10);
   const [input, setInput] = useState<LeaveInput>({ employeeId: people[0]?.id ?? "", leaveType: "Annual", startDate: today, endDate: today, reason: "" });
   const [error, setError] = useState("");
-  const days = workingDays(input.startDate, input.endDate);
+  const hols = holidaysForState(state, input.startDate, input.endDate);
+  const days = workingDays(input.startDate, input.endDate, hols);
   const set = <K extends keyof LeaveInput>(k: K, v: LeaveInput[K]) => setInput((s) => ({ ...s, [k]: v }));
 
   function submit(e: FormEvent) {
@@ -78,7 +79,8 @@ function LeaveForm({ onSubmit, onCancel }: { onSubmit: (input: LeaveInput) => vo
         </p>
       ) : null}
       <p className="stat-foot" style={{ marginTop: 10 }}>
-        Counts Monday–Friday. Nigerian public holidays aren’t deducted automatically yet.
+        Counts Monday–Friday and skips public and company holidays
+        {hols.size ? ` (${[...hols.values()].join(", ")})` : ""}.
       </p>
       <div className="modal-actions">
         <button type="button" className="btn" onClick={onCancel}>

@@ -123,13 +123,14 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     rows(supabase.from("activity").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(50)),
     rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
   ]);
-  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows] = await Promise.all([
+  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows] = await Promise.all([
     rows(supabase.from("organizations").select("name, leave_allowance_days").eq("id", orgId).limit(1)),
     optionalRows(supabase.from("employee_compensation").select("employee_id, monthly_gross").eq("org_id", orgId)), // HR admins only (RLS)
     optionalRows(supabase.from("leave_requests").select("*").eq("org_id", orgId).order("start_date", { ascending: false }).limit(500)),
     optionalRows(supabase.from("goals").select("*").eq("org_id", orgId).order("due_date")),
     optionalRows(supabase.from("reviews").select("*").eq("org_id", orgId)),
     optionalRows(supabase.from("payroll_runs").select("*").eq("org_id", orgId).order("period", { ascending: false })),
+    optionalRows(supabase.from("company_holidays").select("id, date, name").eq("org_id", orgId).order("date")),
   ]);
 
   const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
@@ -201,6 +202,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
       companyName: s(org[0]?.name, "Your company"),
       leaveAllowanceDays: n(org[0]?.leave_allowance_days, 20),
     },
+    holidays: holidayRows.map((r) => ({ id: s(r.id), date: s(r.date), name: s(r.name) })),
     talentDb: [], // MyJobMag CV database: needs MyJobMag API approval
     invitations: [],
     inbox: inbox.map<SelfServiceRequest>((r) => ({
@@ -480,6 +482,17 @@ export async function writeChanges(supabase: SupabaseClient, orgId: string, befo
     await check(
       supabase.from("organizations").update({ name: after.settings.companyName, leave_allowance_days: after.settings.leaveAllowanceDays }).eq("id", orgId),
     );
+  }
+
+  // Company holidays
+  const holBefore = new Set(before.holidays.map((h) => h.id));
+  const holAfter = new Set(after.holidays.map((h) => h.id));
+  for (const h of after.holidays) {
+    if (holBefore.has(h.id)) continue;
+    await check(supabase.from("company_holidays").insert({ ...(isUuid(h.id) ? { id: h.id } : {}), org_id: orgId, date: h.date, name: h.name }));
+  }
+  for (const h of before.holidays) {
+    if (!holAfter.has(h.id)) await check(supabase.from("company_holidays").delete().eq("id", h.id));
   }
 
   // Inbox decisions

@@ -9,6 +9,7 @@ import { ROLE_LABELS } from "@/lib/workspace";
 import { Icon } from "../ui/Icon";
 import { useToast } from "../ui/Toast";
 import { GlobalSearch } from "./GlobalSearch";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Topbar() {
   const pathname = usePathname() ?? "/";
@@ -30,6 +31,7 @@ export function Topbar() {
       </div>
       <div className="top-actions">
         <GlobalSearch />
+        <ThemeToggle />
         <button type="button" className="icon-button" onClick={notify} aria-label="Notifications" title="Notifications">
           <Icon name="bell" size={17} />
         </button>

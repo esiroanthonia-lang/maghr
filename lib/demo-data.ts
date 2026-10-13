@@ -2,6 +2,7 @@
 // Every name, email and phone number below is invented for the prototype.
 // Do not replace these with real candidate or employee records.
 
+import type { CompanyHoliday } from "./holidays";
 import type {
   Activity,
   Candidate,
@@ -36,6 +37,8 @@ export interface DemoState {
   reviews: Review[];
   payrollRuns: PayrollRun[];
   settings: CompanySettings;
+  /** Company-declared holidays (Eid, Mawlid, substitute days…). National fixed holidays are calculated. */
+  holidays: CompanyHoliday[];
 }
 
 /** Requirements per seeded vacancy. Plain sentences; the match panel looks for CV skills inside them. */
@@ -461,5 +464,6 @@ export function createDemoData(now: Date = new Date()): DemoState {
     reviews,
     payrollRuns,
     settings,
+    holidays: [{ id: "hol-001", date: `${today.getUTCFullYear()}-12-31`, name: "Company end-of-year day" }],
   };
 }

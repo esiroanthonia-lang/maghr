@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
-import { formatNaira, leaveBalance, workingDays } from "@/lib/people";
+import { formatNaira, holidaysForState, leaveBalance, workingDays } from "@/lib/people";
 import { LEAVE_TYPES, type LeaveType } from "@/lib/types";
 import { myEmployeeEmail } from "@/lib/workspace";
 import { Avatar, Badge, EmptyState, Notice, Panel } from "../ui/bits";
@@ -49,7 +49,8 @@ export function MyView() {
   const upcoming = todayIso ? myLeave.find((l) => l.status === "Approved" && l.endDate >= todayIso) : undefined;
   const review = [...state.reviews].filter((r) => r.employeeId === me.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const pay = state.pay[me.id];
-  const days = start && end ? workingDays(start, end) : 0;
+  const hols = start && end ? holidaysForState(state, start, end) : new Map<string, string>();
+  const days = start && end ? workingDays(start, end, hols) : 0;
   const tenureYears = now ? Math.max(0, Math.floor((now.getTime() - Date.parse(`${me.startDate}T00:00:00Z`)) / (365.25 * 86400000))) : null;
 
   function submit(e: FormEvent) {
@@ -119,6 +120,11 @@ export function MyView() {
                 </div>
                 <Field label="First day">{(p) => <input {...p} type="date" value={start} min={todayIso ?? undefined} onChange={(e) => setStart(e.target.value)} />}</Field>
                 <Field label="Last day">{(p) => <input {...p} type="date" value={end} min={start || todayIso || undefined} onChange={(e) => setEnd(e.target.value)} />}</Field>
+                {hols.size ? (
+                  <p className="stat-foot field full" style={{ margin: 0 }}>
+                    Not counted: {[...hols.values()].join(", ")}.
+                  </p>
+                ) : null}
                 <Field label="Note for your manager (optional)" full hint="No medical details needed.">
                   {(p) => <textarea {...p} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />}
                 </Field>

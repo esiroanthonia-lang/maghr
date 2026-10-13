@@ -204,3 +204,49 @@ describe("settings, reports and permissions", () => {
     assert.equal(myEmployeeEmail({ mode: "demo" }), "grace.nwosu@example.com");
   });
 });
+
+describe("Nigerian public holidays", async () => {
+  const { easterSunday, nigeriaFixedHolidays, holidaysBetween } = await import("../lib/holidays");
+  const { holidaysForState } = await import("../lib/people");
+
+  it("calculates Easter correctly", () => {
+    assert.equal(easterSunday(2026), "2026-04-05");
+    assert.equal(easterSunday(2027), "2027-03-28");
+    assert.equal(easterSunday(2025), "2025-04-20");
+  });
+
+  it("lists the fixed national holidays, including Good Friday and Easter Monday", () => {
+    const names = Object.fromEntries(nigeriaFixedHolidays(2026).map((h) => [h.name, h.date]));
+    assert.equal(names["Good Friday"], "2026-04-03");
+    assert.equal(names["Easter Monday"], "2026-04-06");
+    assert.equal(names["Democracy Day"], "2026-06-12");
+    assert.equal(names["Independence Day"], "2026-10-01");
+    assert.equal(nigeriaFixedHolidays(2026).length, 8);
+  });
+
+  it("skips weekends, national and company holidays when counting leave", () => {
+    const s = fresh(); // demo has a company holiday on 31 Dec
+    const h = holidaysForState(s, "2026-12-21", "2026-12-31");
+    assert.equal(h.get("2026-12-25"), "Christmas Day");
+    assert.equal(h.get("2026-12-31"), "Company end-of-year day");
+    // 9 weekdays, minus Christmas (Fri) and 31 Dec (Thu). Boxing Day is a Saturday.
+    assert.equal(workingDays("2026-12-21", "2026-12-31", h), 7);
+    const next = run(s, { type: "leave/request", id: "x", at, input: { employeeId: "emp-005", leaveType: "Annual", startDate: "2026-12-21", endDate: "2026-12-31", reason: "" } });
+    assert.equal(next.leave[0].days, 7);
+  });
+
+  it("refuses a request that only covers holidays", () => {
+    const s = fresh();
+    assert.equal(run(s, { type: "leave/request", id: "x", at, input: { employeeId: "emp-005", leaveType: "Annual", startDate: "2026-10-01", endDate: "2026-10-01", reason: "" } }), s);
+  });
+
+  it("adds and removes company holidays (one per date)", () => {
+    const s = fresh();
+    const a = run(s, { type: "settings/addHoliday", id: "h1", at, date: "2026-03-20", name: "Eid-el-Fitr" });
+    assert.ok(a.holidays.some((h) => h.id === "h1"));
+    assert.equal(run(a, { type: "settings/addHoliday", id: "h2", at, date: "2026-03-20", name: "Duplicate" }), a);
+    const b = run(a, { type: "settings/removeHoliday", id: "r", at, holidayId: "h1" });
+    assert.ok(!b.holidays.some((h) => h.id === "h1"));
+    assert.equal(holidaysBetween("2026-03-20", "2026-03-20", b.holidays).size, 0);
+  });
+});

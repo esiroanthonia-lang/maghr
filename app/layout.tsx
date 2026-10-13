@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import type { ReactNode } from "react";
+import { THEME_BOOT_SCRIPT } from "@/components/shell/ThemeToggle";
 import "./globals.css";
 
 // Display face for titles and figures; a warm, highly legible sans for the interface.
@@ -16,12 +17,18 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#10283a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#10283a" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a141c" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en-NG" className={`${display.variable} ${body.variable}`}>
+    <html lang="en-NG" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );
