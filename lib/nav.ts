@@ -10,17 +10,17 @@ export interface NavItem {
 
 export const WORKSPACE_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: "overview", ready: true },
-  { href: "/employees", label: "Employees", icon: "people", ready: false },
+  { href: "/employees", label: "Employees", icon: "people", ready: true },
   { href: "/recruitment", label: "Recruitment", icon: "search", ready: true },
   { href: "/whatsapp", label: "WhatsApp desk", icon: "chat", ready: true },
-  { href: "/leave", label: "Leave & attendance", icon: "calendar", ready: false },
-  { href: "/payroll", label: "Payroll & payslips", icon: "naira", ready: false },
-  { href: "/performance", label: "Performance", icon: "trend", ready: false },
+  { href: "/leave", label: "Leave & attendance", icon: "calendar", ready: true },
+  { href: "/payroll", label: "Payroll & payslips", icon: "naira", ready: true },
+  { href: "/performance", label: "Performance", icon: "trend", ready: true },
 ];
 
 export const MANAGE_NAV: NavItem[] = [
-  { href: "/reports", label: "Reports", icon: "report", ready: false },
-  { href: "/settings", label: "Settings", icon: "settings", ready: false },
+  { href: "/reports", label: "Reports", icon: "report", ready: true },
+  { href: "/settings", label: "Settings", icon: "settings", ready: true },
 ];
 
 export function pageTitle(pathname: string): string {

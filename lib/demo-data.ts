@@ -6,7 +6,12 @@ import type {
   Activity,
   Candidate,
   CandidateSource,
+  CompanySettings,
   CvProfile,
+  Goal,
+  LeaveRequest,
+  PayrollRun,
+  Review,
   Employee,
   Invitation,
   Job,
@@ -15,8 +20,6 @@ import type {
   TalentProfile,
 } from "./types";
 
-/** Headcount that the demo assumes exists outside the small sample directory. */
-export const DEMO_BASE_HEADCOUNT = 124;
 
 export interface DemoState {
   jobs: Job[];
@@ -26,6 +29,13 @@ export interface DemoState {
   talentDb: TalentProfile[];
   invitations: Invitation[];
   inbox: SelfServiceRequest[];
+  /** Monthly gross pay in naira, by employee id. Only HR admins can see this in live mode. */
+  pay: Record<string, number>;
+  leave: LeaveRequest[];
+  goals: Goal[];
+  reviews: Review[];
+  payrollRuns: PayrollRun[];
+  settings: CompanySettings;
 }
 
 /** Requirements per seeded vacancy. Plain sentences; the match panel looks for CV skills inside them. */
@@ -300,52 +310,95 @@ export function createDemoData(now: Date = new Date()): DemoState {
     cand("Segun Afolabi", "job-1023", "Rejected", 3, 12 * DAY, { inTalentPool: true }),
   ];
 
-  const employees: Employee[] = [
-    {
-      id: "emp-001",
-      name: "Grace Nwosu",
-      email: "grace.nwosu@example.com",
-      department: "People Operations",
-      jobTitle: "HR Manager",
-      location: "Lagos · Hybrid",
-      startDate: "2022-03-01",
-      status: "Active",
-      source: "Seed",
-    },
-    {
-      id: "emp-002",
-      name: "Daniel Adebayo",
-      email: "daniel.adebayo@example.com",
-      department: "Engineering",
-      jobTitle: "Software Engineer",
-      location: "Remote",
-      startDate: "2023-01-16",
-      status: "Active",
-      source: "Seed",
-    },
-    {
-      id: "emp-003",
-      name: "Fatima Bello",
-      email: "fatima.bello@example.com",
-      department: "Sales",
-      jobTitle: "Sales Lead",
-      location: "Abuja · On-site",
-      startDate: "2021-07-05",
-      status: "Active",
-      source: "Seed",
-    },
-    {
-      id: "emp-004",
-      name: "Michael Ekanem",
-      email: "michael.ekanem@example.com",
-      department: "Product & Design",
-      jobTitle: "Product Designer",
-      location: "Lagos · Hybrid",
-      startDate: "2024-02-12",
-      status: "Active",
-      source: "Seed",
-    },
+  // Synthetic staff directory. emp-001…emp-004 are referenced elsewhere in the demo.
+  const staff: [string, Employee["department"], string, string, string, string, number, Employee["status"]?][] = [
+    ["Grace Nwosu", "People Operations", "HR Manager", "Lagos · Hybrid", "2022-03-01", "", 850000],
+    ["Daniel Adebayo", "Engineering", "Software Engineer", "Remote", "2023-01-16", "Tobi Ogun", 900000],
+    ["Fatima Bello", "Sales", "Sales Lead", "Abuja · On-site", "2021-07-05", "Grace Nwosu", 750000],
+    ["Michael Ekanem", "Product & Design", "Product Designer", "Lagos · Hybrid", "2024-02-12", "Ifeoma Obi", 700000],
+    ["Tobi Ogun", "Engineering", "Engineering Manager", "Lagos · Hybrid", "2020-09-14", "", 1400000],
+    ["Ifeoma Obi", "Marketing", "Head of Marketing", "Lagos · Hybrid", "2021-04-19", "", 1100000],
+    ["Peter James", "Finance", "Finance Officer", "Lagos · On-site", "2022-11-07", "Kunle Akande", 520000],
+    ["Kunle Akande", "Finance", "Finance Manager", "Lagos · On-site", "2019-06-03", "", 1250000],
+    ["Blessing Udo", "Sales", "Account Executive", "Port Harcourt · Field", "2023-05-22", "Fatima Bello", 480000],
+    ["Musa Garba", "Sales", "Account Executive", "Kano · Field", "2024-08-05", "Fatima Bello", 460000],
+    ["Chiamaka Obi", "Engineering", "QA Engineer", "Remote", "2023-10-02", "Tobi Ogun", 650000],
+    ["Uche Okeke", "Engineering", "Backend Engineer", "Enugu · Remote", "2022-02-28", "Tobi Ogun", 950000],
+    ["Sade Williams", "People Operations", "HR Associate", "Lagos · Hybrid", "2025-01-13", "Grace Nwosu", 380000],
+    ["Ahmed Lawal", "Marketing", "Content Lead", "Abuja · Hybrid", "2023-03-06", "Ifeoma Obi", 560000],
+    ["Kemi Adeyemi", "People Operations", "HR Generalist", "Lagos · Hybrid", "2026-10-27", "Grace Nwosu", 520000, "Onboarding"],
+    ["Ruth Eze", "Product & Design", "UX Researcher", "Lagos · Hybrid", "2021-08-16", "Ifeoma Obi", 0, "Exited"],
   ];
+  const employees: Employee[] = staff.map(([name, department, jobTitle, location, startDate, managerName, , status], i) => ({
+    id: `emp-${String(i + 1).padStart(3, "0")}`,
+    name,
+    email: `${name.toLowerCase().replace(/[^a-z]+/g, ".")}@example.com`,
+    department,
+    jobTitle,
+    location,
+    startDate,
+    status: status ?? "Active",
+    source: "Seed",
+    phone: `+234 800 222 ${String(3000 + i).slice(-4)}`,
+    managerName,
+    employmentType: jobTitle.includes("Intern") ? "Internship" : "Full-time",
+    exitedOn: status === "Exited" ? "2026-06-30" : null,
+  }));
+  const pay: Record<string, number> = Object.fromEntries(
+    staff.map((row, i) => [`emp-${String(i + 1).padStart(3, "0")}`, row[6]] as const).filter(([, v]) => v > 0),
+  );
+
+  const today = new Date(t);
+  const ymd = (offsetDays: number) => new Date(t + offsetDays * DAY).toISOString().slice(0, 10);
+  const leave: LeaveRequest[] = [
+    { id: "lv-001", employeeId: "emp-001", leaveType: "Annual", startDate: ymd(3), endDate: ymd(6), days: 4, reason: "Family visit", status: "Pending", decidedBy: "", decidedAt: null, createdAt: ago(1 * DAY) },
+    { id: "lv-002", employeeId: "emp-007", leaveType: "Sick", startDate: ymd(1), endDate: ymd(1), days: 1, reason: "", status: "Pending", decidedBy: "", decidedAt: null, createdAt: ago(3 * HOUR) },
+    { id: "lv-003", employeeId: "emp-011", leaveType: "Annual", startDate: ymd(-1), endDate: ymd(2), days: 4, reason: "Wedding", status: "Approved", decidedBy: "Tobi Ogun", decidedAt: ago(5 * DAY), createdAt: ago(9 * DAY) },
+    { id: "lv-004", employeeId: "emp-009", leaveType: "Annual", startDate: ymd(0), endDate: ymd(4), days: 5, reason: "", status: "Approved", decidedBy: "Fatima Bello", decidedAt: ago(4 * DAY), createdAt: ago(8 * DAY) },
+    { id: "lv-005", employeeId: "emp-002", leaveType: "Annual", startDate: ymd(-40), endDate: ymd(-31), days: 8, reason: "", status: "Approved", decidedBy: "Tobi Ogun", decidedAt: ago(50 * DAY), createdAt: ago(55 * DAY) },
+    { id: "lv-006", employeeId: "emp-014", leaveType: "Study", startDate: ymd(-20), endDate: ymd(-18), days: 3, reason: "Exams", status: "Declined", decidedBy: "Ifeoma Obi", decidedAt: ago(25 * DAY), createdAt: ago(27 * DAY) },
+  ];
+
+  const goals: Goal[] = [
+    { id: "goal-001", title: "Cut average time-to-hire to 21 days", ownerName: "Grace Nwosu", department: "People Operations", dueDate: ymd(18), progress: 72, createdAt: ago(60 * DAY) },
+    { id: "goal-002", title: "Launch employer self-service onboarding", ownerName: "Tobi Ogun", department: "Engineering", dueDate: ymd(33), progress: 48, createdAt: ago(45 * DAY) },
+    { id: "goal-003", title: "Grow qualified applications by 30%", ownerName: "Ifeoma Obi", department: "Marketing", dueDate: ymd(19), progress: 91, createdAt: ago(70 * DAY) },
+    { id: "goal-004", title: "Close 25 new employer accounts in Q4", ownerName: "Fatima Bello", department: "Sales", dueDate: ymd(79), progress: 22, createdAt: ago(12 * DAY) },
+    { id: "goal-005", title: "Monthly close done in 5 working days", ownerName: "Kunle Akande", department: "Finance", dueDate: ymd(48), progress: 60, createdAt: ago(30 * DAY) },
+  ];
+
+  const cycle = `Q${Math.floor(today.getUTCMonth() / 3) + 1} ${today.getUTCFullYear()}`;
+  const reviewStatuses: Review["status"][] = ["Completed", "Completed", "Manager review", "Self review", "Not started", "Completed", "Manager review", "Completed", "Self review", "Not started", "Completed", "Completed", "Not started", "Manager review"];
+  const reviews: Review[] = employees
+    .filter((e) => e.status === "Active")
+    .map((e, i) => ({
+      id: `rev-${String(i + 1).padStart(3, "0")}`,
+      employeeId: e.id,
+      cycle,
+      status: reviewStatuses[i % reviewStatuses.length],
+      rating: reviewStatuses[i % reviewStatuses.length] === "Completed" ? [4, 3, 5, 4, 3][i % 5] : null,
+      summary: "",
+      reviewerName: reviewStatuses[i % reviewStatuses.length] === "Not started" ? "" : e.managerName || "Grace Nwosu",
+      updatedAt: ago((i + 1) * DAY),
+    }));
+
+  const month = (back: number) => {
+    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - back, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  };
+  const payrollRuns: PayrollRun[] = [1, 2].map((back) => ({
+    id: `pay-${back}`,
+    period: month(back),
+    status: "Approved",
+    employeeCount: Object.keys(pay).length - (back === 2 ? 1 : 0),
+    grossTotal: Object.values(pay).reduce((a, b) => a + b, 0) - (back === 2 ? 380000 : 0),
+    preparedBy: "Grace Nwosu",
+    approvedBy: "Kunle Akande",
+    approvedAt: ago((back * 30 - 2) * DAY),
+    createdAt: ago((back * 30) * DAY),
+  }));
+
+  const settings: CompanySettings = { companyName: "MyJobMag (demo)", leaveAllowanceDays: 20 };
 
   const activity: Activity[] = [
     {
@@ -394,5 +447,19 @@ export function createDemoData(now: Date = new Date()): DemoState {
     },
   ];
 
-  return { jobs, candidates, employees, activity, talentDb: talentDatabase(ago), invitations: [], inbox };
+  return {
+    jobs,
+    candidates,
+    employees,
+    activity,
+    talentDb: talentDatabase(ago),
+    invitations: [],
+    inbox,
+    pay,
+    leave,
+    goals,
+    reviews,
+    payrollRuns,
+    settings,
+  };
 }

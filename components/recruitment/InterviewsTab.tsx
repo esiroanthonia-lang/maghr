@@ -62,7 +62,7 @@ export function InterviewsTab() {
 
   return (
     <>
-      <Panel title="Upcoming interviews" subtitle="Calendar invites are not sent in this prototype">
+      <Panel title="Upcoming interviews" subtitle="Calendar invites aren’t sent automatically yet">
         {table(upcoming, "No upcoming interviews")}
       </Panel>
       {shortlisted.length > 0 ? (

@@ -100,7 +100,7 @@ export function CandidateForm({
             </select>
           )}
         </Field>
-        <Field label="Note (optional)" full hint="Use synthetic details only — this prototype must not hold real CVs or personal data.">
+        <Field label="Note (optional)" full hint="Use test details only until your data-protection checklist is complete.">
           {(p) => <textarea {...p} rows={3} value={input.note} onChange={(e) => set("note", e.target.value)} placeholder="How did you find this candidate?" />}
         </Field>
       </div>

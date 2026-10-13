@@ -4,10 +4,10 @@
 
 import { randomUUID } from "node:crypto";
 import type { DemoState } from "@/lib/demo-data";
-import { recruitmentReducer, type RecruitmentAction } from "@/lib/recruitment";
+import { appReducer, type AppAction as RecruitmentAction } from "@/lib/app-reducer";
 import { isUuid, loadState, writeChanges } from "@/lib/server/data";
 import { requireWorkspace } from "@/lib/server/session";
-import { RECRUITMENT_WRITERS } from "@/lib/workspace";
+import { rolesFor } from "@/lib/workspace";
 
 export type PersistResult = { ok: true; state: DemoState } | { ok: false; error: string; state?: DemoState };
 
@@ -29,6 +29,21 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
   "candidate/assignToJob",
   "candidate/reviewRequirement",
   "inbox/setStatus",
+  "employee/add",
+  "employee/update",
+  "employee/setPay",
+  "employee/exit",
+  "leave/request",
+  "leave/decide",
+  "leave/cancel",
+  "goal/add",
+  "goal/progress",
+  "review/set",
+  "payroll/create",
+  "payroll/submit",
+  "payroll/approve",
+  "payroll/reopen",
+  "settings/update",
 ]);
 
 function friendly(message: string): string {
@@ -43,8 +58,8 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
   if (!raw || typeof raw !== "object" || !ALLOWED.has((raw as { type: RecruitmentAction["type"] }).type)) {
     return { ok: false, error: "That action isn’t supported." };
   }
-  if (raw && (raw as { type: string }).type !== "inbox/setStatus" && !RECRUITMENT_WRITERS.includes(info.me.role)) {
-    return { ok: false, error: "Your role can view recruitment but not change it." };
+  if (!rolesFor((raw as { type: string }).type).includes(info.me.role)) {
+    return { ok: false, error: "Your role can view this but not change it. Ask an HR admin." };
   }
   if (JSON.stringify(raw).length > 20_000) return { ok: false, error: "That request is too large." };
 
@@ -59,7 +74,7 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
 
   try {
     const before = await loadState(supabase, info.orgId);
-    const after = recruitmentReducer(before, action);
+    const after = appReducer(before, action);
     if (after !== before) await writeChanges(supabase, info.orgId, before, after);
     return { ok: true, state: await loadState(supabase, info.orgId) };
   } catch (e) {

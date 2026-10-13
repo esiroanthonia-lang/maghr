@@ -25,3 +25,23 @@ export type WorkspaceInfo =
 export function canEditRecruitment(w: WorkspaceInfo): boolean {
   return w.mode === "demo" || RECRUITMENT_WRITERS.includes(w.me.role);
 }
+
+/** Which roles may perform each kind of change. The database enforces the same rules. */
+const ACTION_ROLES: [prefix: string, roles: Role[]][] = [
+  ["inbox/", ["hr_admin"]],
+  ["employee/", ["hr_admin"]],
+  ["leave/", ["hr_admin", "manager"]],
+  ["goal/", ["hr_admin", "manager"]],
+  ["review/", ["hr_admin", "manager"]],
+  ["payroll/", ["hr_admin"]],
+  ["settings/", ["hr_admin"]],
+  ["", RECRUITMENT_WRITERS], // everything else is recruitment
+];
+
+export function rolesFor(actionType: string): Role[] {
+  return ACTION_ROLES.find(([prefix]) => actionType.startsWith(prefix))![1];
+}
+
+export function canPerform(w: WorkspaceInfo, actionType: string): boolean {
+  return w.mode === "demo" || rolesFor(actionType).includes(w.me.role);
+}

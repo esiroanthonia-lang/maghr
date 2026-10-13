@@ -83,7 +83,7 @@ export function InterviewForm({
         ) : null}
       </div>
       <div style={{ marginTop: 16 }}>
-        <Notice>Calendar invites and emails are not sent in this prototype.</Notice>
+        <Notice>Calendar invites and emails aren’t sent automatically yet.</Notice>
       </div>
       <div className="modal-actions">
         <button type="button" className="btn" onClick={onCancel}>

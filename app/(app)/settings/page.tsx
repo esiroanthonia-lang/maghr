@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { ComingNext } from "@/components/shell/ComingNext";
+import { CompanySettingsPanel, SettingsIntegrations } from "@/components/people/CompanySettings";
 import { TeamManager, type Member, type PendingInvite } from "@/components/settings/TeamManager";
-import { PageHeader } from "@/components/ui/bits";
+import { PageHeader, Panel } from "@/components/ui/bits";
 import { demoMode, requireWorkspace } from "@/lib/server/session";
 import { ROLES, type Role } from "@/lib/workspace";
 
@@ -12,17 +12,16 @@ const asRole = (r: unknown): Role => ((ROLES as readonly string[]).includes(r as
 export default async function SettingsPage() {
   if (demoMode()) {
     return (
-      <ComingNext
-        title="Settings"
-        eyebrow="YOUR WORKSPACE, YOUR RULES"
-        intro="Manage company details, access, and preferences."
-        planned={[
-          "Team and roles (available now when connected to a database: see SETUP.md)",
-          "Company and workspace details",
-          "Leave policy and working week",
-          "Integrations: MyJobMag, WhatsApp Business",
-        ]}
-      />
+      <>
+        <PageHeader eyebrow="YOUR WORKSPACE, YOUR RULES" title="Settings" intro="Company details, leave policy, team and integrations." />
+        <CompanySettingsPanel />
+        <Panel title="Team & roles" subtitle="Available when connected to a database">
+          <p className="panel-body" style={{ margin: 0, fontSize: 13 }}>
+            Invite teammates as HR admin, recruiter, manager or employee once sign-in is switched on. See SETUP.md.
+          </p>
+        </Panel>
+        <SettingsIntegrations />
+      </>
     );
   }
   const { supabase, info } = await requireWorkspace();
@@ -43,8 +42,10 @@ export default async function SettingsPage() {
   }));
   return (
     <>
-      <PageHeader eyebrow="YOUR WORKSPACE, YOUR RULES" title="Settings" intro={`Team and access for ${info.orgName}.`} />
+      <PageHeader eyebrow="YOUR WORKSPACE, YOUR RULES" title="Settings" intro={`Company details, team and access for ${info.orgName}.`} />
+      <CompanySettingsPanel />
       <TeamManager members={members} invites={invites} meId={info.me.userId} isAdmin={isAdmin} />
+      <SettingsIntegrations />
     </>
   );
 }

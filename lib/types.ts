@@ -181,11 +181,84 @@ export interface Employee {
   jobTitle: string;
   location: string;
   startDate: string;
-  status: "Active" | "Onboarding";
+  status: EmployeeStatus;
   source: "Seed" | "Converted from candidate" | "Added manually";
+  phone: string;
+  managerName: string;
+  employmentType: EmploymentType;
+  exitedOn: string | null;
 }
 
-export type ActivityKind = "application" | "stage" | "interview" | "offer" | "job" | "employee" | "note" | "publish" | "sourcing" | "whatsapp";
+export const EMPLOYEE_STATUSES = ["Active", "Onboarding", "Exited"] as const;
+export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
+
+export const LEAVE_TYPES = ["Annual", "Sick", "Maternity", "Paternity", "Compassionate", "Study", "Unpaid"] as const;
+export type LeaveType = (typeof LEAVE_TYPES)[number];
+export const LEAVE_STATUSES = ["Pending", "Approved", "Declined", "Cancelled"] as const;
+export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
+
+export interface LeaveRequest {
+  id: string;
+  employeeId: string;
+  leaveType: LeaveType;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;
+  days: number; // working days
+  reason: string;
+  status: LeaveStatus;
+  decidedBy: string;
+  decidedAt: string | null;
+  createdAt: string;
+}
+
+export const GOAL_DEPARTMENTS = ["Company", "Engineering", "People Operations", "Sales", "Product & Design", "Marketing", "Finance"] as const;
+export type GoalDepartment = (typeof GOAL_DEPARTMENTS)[number];
+
+export interface Goal {
+  id: string;
+  title: string;
+  ownerName: string;
+  department: GoalDepartment;
+  dueDate: string;
+  progress: number; // 0–100
+  createdAt: string;
+}
+
+export const REVIEW_STATUSES = ["Not started", "Self review", "Manager review", "Completed"] as const;
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
+
+export interface Review {
+  id: string;
+  employeeId: string;
+  cycle: string;
+  status: ReviewStatus;
+  rating: number | null;
+  summary: string;
+  reviewerName: string;
+  updatedAt: string;
+}
+
+export const PAYROLL_STATUSES = ["Draft", "Pending approval", "Approved"] as const;
+export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
+
+export interface PayrollRun {
+  id: string;
+  period: string; // YYYY-MM
+  status: PayrollStatus;
+  employeeCount: number;
+  grossTotal: number;
+  preparedBy: string;
+  approvedBy: string;
+  approvedAt: string | null;
+  createdAt: string;
+}
+
+export interface CompanySettings {
+  companyName: string;
+  leaveAllowanceDays: number;
+}
+
+export type ActivityKind = "application" | "stage" | "interview" | "offer" | "job" | "employee" | "note" | "publish" | "sourcing" | "whatsapp" | "leave" | "performance" | "payroll" | "settings";
 
 export interface Activity {
   id: string;

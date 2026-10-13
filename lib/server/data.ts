@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DemoState } from "../demo-data";
-import type { Activity, Candidate, Employee, Interview, Job, Note, SelfServiceRequest, StageChange } from "../types";
+import type { Activity, Candidate, Employee, Goal, Interview, Job, LeaveRequest, Note, PayrollRun, Review, SelfServiceRequest, StageChange } from "../types";
 
 type Row = Record<string, unknown>;
 
@@ -74,6 +74,10 @@ function toEmployee(r: Row): Employee {
     startDate: s(r.start_date),
     status: s(r.status) as Employee["status"],
     source: s(r.source) as Employee["source"],
+    phone: s(r.phone),
+    managerName: s(r.manager_name),
+    employmentType: s(r.employment_type, "Full-time") as Employee["employmentType"],
+    exitedOn: (r.exited_on as string | null) ?? null,
   };
 }
 
@@ -86,6 +90,19 @@ function groupBy<T>(rows: Row[], key: string, map: (r: Row) => T): Map<string, T
     out.set(k, list);
   }
   return out;
+}
+
+/**
+ * Like rows(), but returns [] when the table doesn't exist yet, so the app keeps working
+ * between deploying new code and running the matching database migration.
+ */
+async function optionalRows(q: PromiseLike<{ data: Row[] | null; error: { message: string; code?: string } | null }>): Promise<Row[]> {
+  const { data, error } = await q;
+  if (error) {
+    if (error.code === "42P01" || error.code === "PGRST205" || /does not exist|schema cache/i.test(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return data ?? [];
 }
 
 async function rows(q: PromiseLike<{ data: Row[] | null; error: { message: string } | null }>): Promise<Row[]> {
@@ -105,6 +122,14 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     rows(supabase.from("employees").select("*").eq("org_id", orgId).order("name")),
     rows(supabase.from("activity").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(50)),
     rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
+  ]);
+  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows] = await Promise.all([
+    rows(supabase.from("organizations").select("name, leave_allowance_days").eq("id", orgId).limit(1)),
+    optionalRows(supabase.from("employee_compensation").select("employee_id, monthly_gross").eq("org_id", orgId)), // HR admins only (RLS)
+    optionalRows(supabase.from("leave_requests").select("*").eq("org_id", orgId).order("start_date", { ascending: false }).limit(500)),
+    optionalRows(supabase.from("goals").select("*").eq("org_id", orgId).order("due_date")),
+    optionalRows(supabase.from("reviews").select("*").eq("org_id", orgId)),
+    optionalRows(supabase.from("payroll_runs").select("*").eq("org_id", orgId).order("period", { ascending: false })),
   ]);
 
   const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
@@ -128,6 +153,54 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     candidates: candidates.map((r) => toCandidate(r, notesBy.get(s(r.id)) ?? [], interviewsBy.get(s(r.id)) ?? [], historyBy.get(s(r.id)) ?? [])),
     employees: employees.map(toEmployee),
     activity: activity.map<Activity>((r) => ({ id: s(r.id), kind: s(r.kind) as Activity["kind"], title: s(r.title), detail: s(r.detail), at: s(r.at) })),
+    pay: Object.fromEntries(comp.map((r) => [s(r.employee_id), Number(r.monthly_gross) || 0])),
+    leave: leaveRows.map((r) => ({
+      id: s(r.id),
+      employeeId: s(r.employee_id),
+      leaveType: s(r.leave_type) as LeaveRequest["leaveType"],
+      startDate: s(r.start_date),
+      endDate: s(r.end_date),
+      days: n(r.days),
+      reason: s(r.reason),
+      status: s(r.status) as LeaveRequest["status"],
+      decidedBy: s(r.decided_by_name),
+      decidedAt: (r.decided_at as string | null) ?? null,
+      createdAt: s(r.created_at),
+    })),
+    goals: goalRows.map((r) => ({
+      id: s(r.id),
+      title: s(r.title),
+      ownerName: s(r.owner_name),
+      department: s(r.department) as Goal["department"],
+      dueDate: s(r.due_date),
+      progress: n(r.progress),
+      createdAt: s(r.created_at),
+    })),
+    reviews: reviewRows.map((r) => ({
+      id: s(r.id),
+      employeeId: s(r.employee_id),
+      cycle: s(r.cycle),
+      status: s(r.status) as Review["status"],
+      rating: typeof r.rating === "number" ? r.rating : null,
+      summary: s(r.summary),
+      reviewerName: s(r.reviewer_name),
+      updatedAt: s(r.updated_at),
+    })),
+    payrollRuns: payrollRows.map((r) => ({
+      id: s(r.id),
+      period: s(r.period),
+      status: s(r.status) as PayrollRun["status"],
+      employeeCount: n(r.employee_count),
+      grossTotal: Number(r.gross_total) || 0,
+      preparedBy: s(r.prepared_by_name),
+      approvedBy: s(r.approved_by_name),
+      approvedAt: (r.approved_at as string | null) ?? null,
+      createdAt: s(r.created_at),
+    })),
+    settings: {
+      companyName: s(org[0]?.name, "Your company"),
+      leaveAllowanceDays: n(org[0]?.leave_allowance_days, 20),
+    },
     talentDb: [], // MyJobMag CV database: needs MyJobMag API approval
     invitations: [],
     inbox: inbox.map<SelfServiceRequest>((r) => ({
@@ -276,6 +349,137 @@ export async function writeChanges(supabase: SupabaseClient, orgId: string, befo
         );
       }
     }
+  }
+
+  // Employees added or edited directly (conversions are handled with the candidate above)
+  const empPrev = new Map(before.employees.map((e) => [e.id, e]));
+  for (const e of after.employees) {
+    const prev = empPrev.get(e.id);
+    const row = {
+      name: e.name,
+      email: e.email,
+      phone: e.phone,
+      department: e.department,
+      job_title: e.jobTitle,
+      location: e.location,
+      start_date: e.startDate,
+      status: e.status,
+      manager_name: e.managerName,
+      employment_type: e.employmentType,
+      exited_on: e.exitedOn,
+    };
+    if (!prev) {
+      if (e.source === "Converted from candidate") continue;
+      await check(supabase.from("employees").insert({ ...(isUuid(e.id) ? { id: e.id } : {}), org_id: orgId, source: "Added manually", ...row }));
+    } else if (!same(prev, e)) {
+      await check(supabase.from("employees").update(row).eq("id", e.id));
+    }
+  }
+
+  // Pay (HR admins only; RLS refuses anyone else)
+  for (const [employeeId, amount] of Object.entries(after.pay)) {
+    if (before.pay[employeeId] === amount) continue;
+    await check(
+      supabase
+        .from("employee_compensation")
+        .upsert({ org_id: orgId, employee_id: employeeId, monthly_gross: amount, updated_at: new Date().toISOString() }, { onConflict: "employee_id" }),
+    );
+  }
+
+  // Leave
+  const leavePrev = new Map(before.leave.map((l) => [l.id, l]));
+  for (const l of after.leave) {
+    const prev = leavePrev.get(l.id);
+    if (!prev) {
+      await check(
+        supabase.from("leave_requests").insert({
+          ...(isUuid(l.id) ? { id: l.id } : {}),
+          org_id: orgId,
+          employee_id: l.employeeId,
+          leave_type: l.leaveType,
+          start_date: l.startDate,
+          end_date: l.endDate,
+          days: l.days,
+          reason: l.reason,
+        }),
+      );
+    } else if (prev.status !== l.status) {
+      await check(supabase.from("leave_requests").update({ status: l.status }).eq("id", l.id));
+    }
+  }
+
+  // Goals
+  const goalPrev = new Map(before.goals.map((g) => [g.id, g]));
+  for (const g of after.goals) {
+    const prev = goalPrev.get(g.id);
+    if (!prev) {
+      await check(
+        supabase.from("goals").insert({
+          ...(isUuid(g.id) ? { id: g.id } : {}),
+          org_id: orgId,
+          title: g.title,
+          owner_name: g.ownerName,
+          department: g.department,
+          due_date: g.dueDate,
+          progress: g.progress,
+        }),
+      );
+    } else if (prev.progress !== g.progress) {
+      await check(supabase.from("goals").update({ progress: g.progress }).eq("id", g.id));
+    }
+  }
+
+  // Reviews (one per employee per cycle)
+  const reviewPrev = new Map(before.reviews.map((r) => [r.id, r]));
+  for (const r of after.reviews) {
+    const prev = reviewPrev.get(r.id);
+    if (prev && same(prev, r)) continue;
+    await check(
+      supabase.from("reviews").upsert(
+        {
+          ...(isUuid(r.id) ? { id: r.id } : {}),
+          org_id: orgId,
+          employee_id: r.employeeId,
+          cycle: r.cycle,
+          status: r.status,
+          rating: r.rating,
+          summary: r.summary,
+          reviewer_name: r.reviewerName,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "org_id,employee_id,cycle" },
+      ),
+    );
+  }
+
+  // Payroll runs. Preparer/approver identity and timestamps are set by database triggers.
+  const runPrev = new Map(before.payrollRuns.map((r) => [r.id, r]));
+  for (const r of after.payrollRuns) {
+    const prev = runPrev.get(r.id);
+    if (!prev) {
+      await check(
+        supabase.from("payroll_runs").insert({
+          ...(isUuid(r.id) ? { id: r.id } : {}),
+          org_id: orgId,
+          period: r.period,
+          employee_count: r.employeeCount,
+          gross_total: r.grossTotal,
+        }),
+      );
+    } else if (prev.status !== r.status || prev.grossTotal !== r.grossTotal || prev.employeeCount !== r.employeeCount) {
+      if (r.status === "Pending approval" && prev.status === "Draft") {
+        // Lock in the latest totals while still in Draft, then submit.
+        await check(supabase.from("payroll_runs").update({ employee_count: r.employeeCount, gross_total: r.grossTotal }).eq("id", r.id));
+      }
+      await check(supabase.from("payroll_runs").update({ status: r.status }).eq("id", r.id));
+    }
+  }
+
+  // Company settings
+  if (!same(before.settings, after.settings)) {
+    await check(
+      supabase.from("organizations").update({ name: after.settings.companyName, leave_allowance_days: after.settings.leaveAllowanceDays }).eq("id", orgId),
+    );
   }
 
   // Inbox decisions

@@ -100,7 +100,7 @@ export function RecruitmentView() {
       <div className="stats">
         <StatCard label="Open positions" icon="briefcase" tone="orange" value={openJobs} foot="Currently accepting candidates" />
         <StatCard label="Active applicants" icon="people" tone="blue" value={active} foot="Not yet hired, rejected or withdrawn" />
-        <StatCard label="Interviews next 7 days" icon="calendar" tone="green" value={weekAhead} foot="Scheduled in the demo calendar" />
+        <StatCard label="Interviews next 7 days" icon="calendar" tone="green" value={weekAhead} foot="Scheduled interviews" />
         <StatCard label="Offers out" icon="check" tone="purple" value={offersOut} foot={offersDraft ? `${pluralise(offersDraft, "offer")} still to send` : "Awaiting candidate response"} />
       </div>
 

@@ -392,6 +392,10 @@ export function recruitmentReducer(state: RecruitmentState, action: RecruitmentA
         startDate: action.input.startDate,
         status: "Onboarding",
         source: "Converted from candidate",
+        phone: c.phone,
+        managerName: "",
+        employmentType: state.jobs.find((j) => j.id === c.jobId)?.employmentType ?? "Full-time",
+        exitedOn: null,
       };
       return {
         ...state,

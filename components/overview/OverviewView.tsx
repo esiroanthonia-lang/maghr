@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DEMO_BASE_HEADCOUNT } from "@/lib/demo-data";
+import { onLeaveOn } from "@/lib/people";
 import { formatDateTime, greeting, longDate, pluralise } from "@/lib/format";
 import { funnelCounts, isActiveCandidate, sourceCounts, upcomingInterviews } from "@/lib/recruitment";
 import { useDemoStore, useNow } from "@/lib/store";
@@ -15,6 +15,10 @@ const DOT: Record<ActivityKind, string> = {
   publish: "dot-blue",
   sourcing: "dot-purple",
   whatsapp: "dot-green",
+  leave: "dot-green",
+  performance: "dot-purple",
+  payroll: "dot-orange",
+  settings: "dot-blue",
   stage: "dot-purple",
   interview: "dot-blue",
   offer: "dot-orange",
@@ -39,6 +43,10 @@ export function OverviewView() {
   const interviews = now ? upcomingInterviews(state, now).slice(0, 3) : [];
   const sources = sourceCounts(state.candidates);
   const maxSource = Math.max(1, sources[0]?.count ?? 1);
+  const headcount = state.employees.filter((e) => e.status !== "Exited").length;
+  const onboarding = state.employees.filter((e) => e.status === "Onboarding").length;
+  const outToday = now ? onLeaveOn(state, now.toISOString().slice(0, 10)).length : 0;
+  const pendingLeave = state.leave.filter((l) => l.status === "Pending").length;
   const toReview = state.candidates.filter((c) => c.stage === "Applied" && c.jobId).length;
 
   return (
@@ -55,9 +63,9 @@ export function OverviewView() {
       />
 
       <div className="stats">
-        <StatCard label="Total employees" icon="people" tone="orange" demo value={DEMO_BASE_HEADCOUNT + state.employees.length} foot={<><span className="up">↑ 6.2%</span> vs last quarter</>} />
+        <StatCard label="Employees" icon="people" tone="orange" value={headcount} foot={`${onboarding} onboarding`} />
         <StatCard label="Open positions" icon="briefcase" tone="blue" value={openJobs.length} foot={`Across ${pluralise(departments, "department")}`} />
-        <StatCard label="On leave today" icon="calendar" tone="green" demo value={7} foot="2 requests need attention" />
+        <StatCard label="On leave today" icon="calendar" tone="green" value={outToday} foot={pendingLeave ? `${pluralise(pendingLeave, "request")} need a decision` : "No requests waiting"} />
         <StatCard
           label="Active applicants"
           icon="userPlus"
@@ -169,14 +177,14 @@ export function OverviewView() {
               <Link className="quick" href="/leave">
                 <span className="quick-icon"><Icon name="calendar" size={16} /></span>
                 <strong>Review leave</strong>
-                <span>2 requests pending</span>
+                <span>{pluralise(pendingLeave, "request")} pending</span>
               </Link>
             </div>
           </Panel>
 
           <Panel
             title="Upcoming interviews"
-            subtitle="Scheduled in the demo calendar"
+            subtitle="Scheduled interviews"
             action={
               <Link className="link-btn" href="/recruitment?tab=interviews">
                 See all

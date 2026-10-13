@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { createDemoData, type DemoState } from "../lib/demo-data";
-import { recruitmentReducer, type RecruitmentAction } from "../lib/recruitment";
+import { appReducer as recruitmentReducer, type AppAction as RecruitmentAction } from "../lib/app-reducer";
 import { writeChanges } from "../lib/server/data";
 
 interface Call {
@@ -19,6 +19,12 @@ function fakeClient() {
     const chain = {
       insert(payload: unknown) {
         call.op = "insert";
+        call.payload = payload;
+        calls.push(call);
+        return chain;
+      },
+      upsert(payload: unknown) {
+        call.op = "upsert";
         call.payload = payload;
         calls.push(call);
         return chain;
@@ -139,5 +145,44 @@ describe("writeChanges", () => {
     const { client, calls } = fakeClient();
     await writeChanges(client as never, ORG, s, s);
     assert.equal(calls.length, 0);
+  });
+
+  it("people: leave decision updates status only; database stamps who decided", async () => {
+    const s = base();
+    const calls = await apply(s, { type: "leave/decide", id: uuid(6), at, by: "Ada", leaveId: "lv-001", status: "Approved" });
+    const upd = calls.find((c) => c.table === "leave_requests");
+    assert.deepEqual(upd?.payload, { status: "Approved" });
+    assert.deepEqual(upd?.filters, [["id", "lv-001"]]);
+  });
+
+  it("people: new employee and pay are written to separate tables", async () => {
+    const s = base();
+    const calls = await apply(s, {
+      type: "employee/add",
+      id: uuid(7),
+      at,
+      input: { name: "New Person", email: "new.person@example.com", phone: "", department: "Sales", jobTitle: "Rep", location: "Lagos", startDate: "2026-11-01", managerName: "", employmentType: "Full-time", status: "Onboarding" },
+      monthlyGross: 300000,
+    });
+    const emp = calls.find((c) => c.table === "employees" && c.op === "insert")?.payload as Record<string, unknown>;
+    assert.equal(emp.id, uuid(7));
+    assert.equal(emp.org_id, ORG);
+    assert.ok(!("monthly_gross" in emp), "pay must not be stored on the employee row");
+    assert.ok(calls.some((c) => c.table === "employee_compensation"));
+  });
+
+  it("people: payroll submit locks totals then changes status", async () => {
+    let s = base();
+    s = recruitmentReducer(s, { type: "payroll/create", id: uuid(8), at, by: "Ada", period: "2026-10" });
+    const calls = await apply(s, { type: "payroll/submit", id: uuid(9), at, by: "Ada", runId: uuid(8) });
+    const ups = calls.filter((c) => c.table === "payroll_runs").map((c) => c.payload as Record<string, unknown>);
+    assert.ok("gross_total" in ups[0]);
+    assert.deepEqual(ups[1], { status: "Pending approval" });
+  });
+
+  it("people: settings update the organisation row", async () => {
+    const s = base();
+    const calls = await apply(s, { type: "settings/update", id: uuid(10), at, settings: { companyName: "Acme Nigeria", leaveAllowanceDays: 22 } });
+    assert.deepEqual(calls.find((c) => c.table === "organizations")?.payload, { name: "Acme Nigeria", leave_allowance_days: 22 });
   });
 });

@@ -8,8 +8,8 @@ import { createContext, useCallback, useContext, useMemo, useReducer, useRef, us
 import { persistAction } from "@/app/actions/workspace";
 import { useToast } from "@/components/ui/Toast";
 import { createDemoData } from "./demo-data";
-import { recruitmentReducer, type RecruitmentAction, type RecruitmentState } from "./recruitment";
-import { canEditRecruitment, type WorkspaceInfo } from "./workspace";
+import { appReducer, type AppAction as RecruitmentAction, type AppState as RecruitmentState } from "./app-reducer";
+import { canPerform, type WorkspaceInfo } from "./workspace";
 
 type ActionWithoutMeta = RecruitmentAction extends infer A
   ? A extends { type: "reset" }
@@ -51,7 +51,7 @@ export function DemoStoreProvider({
   initialState?: RecruitmentState;
   workspace?: WorkspaceInfo;
 }) {
-  const [state, dispatch] = useReducer(recruitmentReducer, initialState, (init) => init ?? createDemoData());
+  const [state, dispatch] = useReducer(appReducer, initialState, (init) => init ?? createDemoData());
   const toast = useToast();
   const [pending, setPending] = useState(0);
   const latest = useRef(0);
@@ -65,8 +65,8 @@ export function DemoStoreProvider({
         dispatch(full);
         return id;
       }
-      if (action.type !== "inbox/setStatus" && !canEditRecruitment(workspace)) {
-        toast("Your role can view recruitment but not change it.");
+      if (!canPerform(workspace, action.type)) {
+        toast("Your role can view this but not change it. Ask an HR admin.");
         return id;
       }
       // Show the change straight away, then replace it with what the database actually saved.
