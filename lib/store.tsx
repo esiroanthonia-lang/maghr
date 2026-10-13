@@ -9,7 +9,7 @@ import { persistAction } from "@/app/actions/workspace";
 import { useToast } from "@/components/ui/Toast";
 import { createDemoData } from "./demo-data";
 import { appReducer, type AppAction as RecruitmentAction, type AppState as RecruitmentState } from "./app-reducer";
-import { canPerform, type WorkspaceInfo } from "./workspace";
+import { canPerform, type Role, type WorkspaceInfo } from "./workspace";
 
 type ActionWithoutMeta = RecruitmentAction extends infer A
   ? A extends { type: "reset" }
@@ -23,6 +23,10 @@ interface StoreValue {
   state: RecruitmentState;
   /** Which workspace this is: the synthetic demo, or a real company signed in through Supabase. */
   workspace: WorkspaceInfo;
+  /** The role the screens are built for: the signed-in role, or in the demo whichever role is being tried. */
+  role: Role;
+  /** Demo only: try the app as another role. */
+  setDemoRole: (role: Role) => void;
   /** True while a change is being saved to the database. */
   saving: boolean;
   /** Apply a change; id and timestamp are filled in automatically. Returns the generated id. */
@@ -56,17 +60,19 @@ export function DemoStoreProvider({
   const [pending, setPending] = useState(0);
   const latest = useRef(0);
   const live = workspace.mode === "live";
+  const [demoRole, setDemoRole] = useState<Role>("hr_admin");
+  const role: Role = workspace.mode === "live" ? workspace.me.role : demoRole;
 
   const act = useCallback(
     (action: ActionWithoutMeta) => {
       const id = makeId(action.type.split("/")[1] ?? "x");
       const full = { ...action, id, at: new Date().toISOString() } as RecruitmentAction;
-      if (!live) {
-        dispatch(full);
+      if (!canPerform(workspace, action.type, demoRole)) {
+        toast("Your role can view this but not change it. Ask an HR admin.");
         return id;
       }
-      if (!canPerform(workspace, action.type)) {
-        toast("Your role can view this but not change it. Ask an HR admin.");
+      if (!live) {
+        dispatch(full);
         return id;
       }
       // Show the change straight away, then replace it with what the database actually saved.
@@ -85,14 +91,14 @@ export function DemoStoreProvider({
         .finally(() => setPending((n) => n - 1));
       return id;
     },
-    [live, workspace, toast],
+    [live, workspace, demoRole, toast],
   );
 
   const resetDemo = useCallback(() => {
     if (!live) dispatch({ type: "reset", state: createDemoData() });
   }, [live]);
 
-  const value = useMemo(() => ({ state, workspace, saving: pending > 0, act, resetDemo }), [state, workspace, pending, act, resetDemo]);
+  const value = useMemo(() => ({ state, workspace, role, setDemoRole, saving: pending > 0, act, resetDemo }), [state, workspace, role, pending, act, resetDemo]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 

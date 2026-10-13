@@ -20,8 +20,8 @@ export interface Notification {
 const DAY = 86_400_000;
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-export function notificationsFor(state: DemoState, workspace: WorkspaceInfo, now: Date): Notification[] {
-  const role: Role = workspace.mode === "demo" ? "hr_admin" : workspace.me.role;
+export function notificationsFor(state: DemoState, workspace: WorkspaceInfo, now: Date, demoRole: Role = "hr_admin"): Notification[] {
+  const role: Role = workspace.mode === "demo" ? demoRole : workspace.me.role;
   const myName = workspace.mode === "live" ? workspace.me.name : "HR Admin";
   const today = now.toISOString().slice(0, 10);
   const out: Notification[] = [];

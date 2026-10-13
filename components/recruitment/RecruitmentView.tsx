@@ -29,8 +29,8 @@ type TabId = (typeof TABS)[number]["id"];
 type StageFilter = Stage | "all" | "active";
 
 export function RecruitmentView() {
-  const { state, workspace } = useDemoStore();
-  const readOnly = !canEditRecruitment(workspace);
+  const { state, workspace, role } = useDemoStore();
+  const readOnly = !canEditRecruitment(workspace, role);
   const { openDialog } = useUi();
   const now = useNow();
   const router = useRouter();

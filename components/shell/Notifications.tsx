@@ -34,7 +34,7 @@ function markSeen(ids: string[]) {
 }
 
 export function Notifications() {
-  const { state, workspace } = useDemoStore();
+  const { state, workspace, role } = useDemoStore();
   const now = useNow();
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -49,7 +49,7 @@ export function Notifications() {
       return new Set<string>();
     }
   }, [seenRaw]);
-  const items = useMemo(() => (now ? notificationsFor(state, workspace, now) : []), [state, workspace, now]);
+  const items = useMemo(() => (now ? notificationsFor(state, workspace, now, role) : []), [state, workspace, now, role]);
   const unread = items.filter((n) => !seen.has(n.id)).length;
   // Items that were new when the panel was opened keep their dot until it closes.
   const [freshOnOpen, setFreshOnOpen] = useState<Set<string>>(new Set());

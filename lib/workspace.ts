@@ -1,5 +1,7 @@
 // Shared (client + server) description of the current workspace.
 
+import { DEMO_PERSONAS } from "./roles";
+
 export const ROLES = ["hr_admin", "recruiter", "manager", "employee"] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -22,8 +24,9 @@ export type WorkspaceInfo =
       me: { userId: string; name: string; email: string; role: Role };
     };
 
-export function canEditRecruitment(w: WorkspaceInfo): boolean {
-  return w.mode === "demo" || RECRUITMENT_WRITERS.includes(w.me.role);
+export function canEditRecruitment(w: WorkspaceInfo, demoRole?: Role): boolean {
+  if (w.mode === "demo") return demoRole ? RECRUITMENT_WRITERS.includes(demoRole) : true;
+  return RECRUITMENT_WRITERS.includes(w.me.role);
 }
 
 /** Which roles may perform each kind of change. The database enforces the same rules. */
@@ -54,11 +57,12 @@ export function rolesFor(actionType: string): Role[] {
   return ACTION_ROLES.find(([prefix]) => actionType.startsWith(prefix))![1];
 }
 
-export function canPerform(w: WorkspaceInfo, actionType: string): boolean {
-  return w.mode === "demo" || rolesFor(actionType).includes(w.me.role);
+export function canPerform(w: WorkspaceInfo, actionType: string, demoRole?: Role): boolean {
+  if (w.mode === "demo") return demoRole ? rolesFor(actionType).includes(demoRole) : true;
+  return rolesFor(actionType).includes(w.me.role);
 }
 
 /** The employee record that belongs to the signed-in person (matched by work email). */
-export function myEmployeeEmail(w: WorkspaceInfo): string | null {
-  return w.mode === "live" ? w.me.email.toLowerCase() : "grace.nwosu@example.com"; // demo persona
+export function myEmployeeEmail(w: WorkspaceInfo, demoRole: Role = "hr_admin"): string | null {
+  return w.mode === "live" ? w.me.email.toLowerCase() : DEMO_PERSONAS[demoRole]; // demo persona
 }

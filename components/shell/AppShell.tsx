@@ -6,6 +6,7 @@ import { DemoStoreProvider } from "@/lib/store";
 import type { WorkspaceInfo } from "@/lib/workspace";
 import { ToastProvider } from "../ui/Toast";
 import { DialogHost } from "./DialogHost";
+import { RoleGuard } from "./RoleGuard";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { UiProvider } from "./UiContext";
@@ -24,7 +25,7 @@ export function AppShell({ children, initialState, workspace }: { children: Reac
             <div className="main">
               <Topbar />
               <main id="main" className="content" tabIndex={-1}>
-                {children}
+                <RoleGuard>{children}</RoleGuard>
               </main>
               {live ? null : <p className="demo-banner">MAGHR · DEMO WORKSPACE · SYNTHETIC DATA · CHANGES RESET ON REFRESH</p>}
             </div>
