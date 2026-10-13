@@ -17,7 +17,7 @@ export function Topbar() {
   return (
     <header className="topbar">
       <div className="crumb">
-        Workspace <span style={{ color: "#bdc6cc" }}> / </span> <strong>{pageTitle(pathname)}</strong>
+        Workspace <span className="crumb-sep">/</span> <strong>{pageTitle(pathname)}</strong>
       </div>
       <div className="top-actions">
         <GlobalSearch />

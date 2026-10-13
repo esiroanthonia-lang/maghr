@@ -62,7 +62,7 @@ export function SourceForm({
       </div>
       {job ? (
         <div style={{ marginTop: 16 }}>
-          <div className="label" style={{ fontSize: 11, fontWeight: 800, color: "#52616c", marginBottom: 8 }}>
+          <div className="label" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>
             Requirements vs. their CV
           </div>
           <MatchList matches={matchProfile(job.requirements, profile)} />

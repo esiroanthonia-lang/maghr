@@ -1,12 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Figtree } from "next/font/google";
+import { Bricolage_Grotesque, Figtree, Fraunces, Geist, Hanken_Grotesk, Inter, Sora } from "next/font/google";
 import type { ReactNode } from "react";
 import { THEME_BOOT_SCRIPT } from "@/components/shell/ThemeToggle";
 import "./globals.css";
 
-// Display face for titles and figures; a warm, highly legible sans for the interface.
-const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap", weight: ["500", "600", "700"] });
-const body = Figtree({ subsets: ["latin"], variable: "--font-body", display: "swap", weight: ["400", "500", "600", "700"] });
+// Each appearance palette has its own type pairing (see globals.css). Only the default
+// palette's fonts are preloaded; the others load when someone switches to them.
+const fraunces = Fraunces({ subsets: ["latin"], variable: "--f-fraunces", display: "swap", axes: ["opsz"] });
+const hanken = Hanken_Grotesk({ subsets: ["latin"], variable: "--f-hanken", display: "swap" });
+const geist = Geist({ subsets: ["latin"], variable: "--f-geist", display: "swap", preload: false });
+const sora = Sora({ subsets: ["latin"], variable: "--f-sora", display: "swap", preload: false });
+const inter = Inter({ subsets: ["latin"], variable: "--f-inter", display: "swap", preload: false });
+const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap", weight: ["500", "600", "700"], preload: false });
+const body = Figtree({ subsets: ["latin"], variable: "--font-body", display: "swap", weight: ["400", "500", "600", "700"], preload: false });
 
 export const metadata: Metadata = {
   title: { default: "MagHR — People, made simpler", template: "%s · MagHR" },
@@ -18,14 +24,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#10283a" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a141c" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f4ef" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1411" },
   ],
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en-NG" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
+    <html lang="en-NG" className={[fraunces, hanken, geist, sora, inter, display, body].map((f) => f.variable).join(" ")} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
