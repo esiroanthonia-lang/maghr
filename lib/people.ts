@@ -64,7 +64,7 @@ export type PeopleAction =
   | ({ type: "employee/add"; input: EmployeeInput; monthlyGross: number | null } & Meta)
   | ({ type: "employee/update"; employeeId: string; input: EmployeeInput } & Meta)
   | ({ type: "employee/setPay"; employeeId: string; monthlyGross: number } & Meta)
-  | ({ type: "employee/exit"; employeeId: string; date: string } & Meta)
+  | ({ type: "employee/exit"; employeeId: string; date: string; reason?: string; checklist?: string[] } & Meta)
   | ({ type: "employee/setRent"; employeeId: string; annualRent: number } & Meta)
   | ({ type: "employee/updatePersonal"; employeeId: string; personal: PersonalDetails } & Meta)
   | ({ type: "employee/updateJob"; employeeId: string; job: JobDetails } & Meta)
@@ -211,7 +211,7 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     case "employee/add": {
       const e = cleanEmployee(action.input);
       if (state.employees.some((x) => x.email === e.email)) return state;
-      const employee: Employee = { id: action.id, ...e, source: "Added manually", exitedOn: null };
+      const employee: Employee = { id: action.id, ...e, source: "Added manually", exitedOn: null, exitReason: "", exitChecklist: [] };
       const pay = { ...state.pay };
       if (action.monthlyGross !== null && action.monthlyGross >= 0) pay[action.id] = Math.round(action.monthlyGross);
       return {
@@ -268,11 +268,13 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     }
     case "employee/exit": {
       const e = state.employees.find((x) => x.id === action.employeeId);
-      if (!e || e.status === "Exited") return state;
+      const reason = action.reason ?? "Resignation";
+      if (!e || !ISO_DATE.test(action.date) || !["Resignation", "Termination", "Contract ended", "Retirement", "Other"].includes(reason)) return state;
+      const checklist = [...new Set(action.checklist ?? [])].filter((id) => ["handover", "property", "access", "pay", "interview", "documents"].includes(id));
       return {
         ...state,
-        employees: state.employees.map((x) => (x.id === e.id ? { ...x, status: "Exited", exitedOn: action.date } : x)),
-        activity: log(state, action.id, action.at, "employee", "Employee exit recorded", `${e.name} · last day ${action.date}`),
+        employees: state.employees.map((x) => (x.id === e.id ? { ...x, status: "Exited", exitedOn: action.date, exitReason: reason, exitChecklist: checklist } : x)),
+        activity: log(state, action.id, action.at, "employee", e.status === "Exited" ? "Exit checklist updated" : "Employee exit recorded", `${e.name} · last day ${action.date} · ${reason}`),
       };
     }
 

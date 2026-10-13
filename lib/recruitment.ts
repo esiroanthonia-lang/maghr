@@ -396,6 +396,8 @@ export function recruitmentReducer(state: RecruitmentState, action: RecruitmentA
         managerName: "",
         employmentType: state.jobs.find((j) => j.id === c.jobId)?.employmentType ?? "Full-time",
         exitedOn: null,
+        exitReason: "",
+        exitChecklist: [],
       };
       return {
         ...state,

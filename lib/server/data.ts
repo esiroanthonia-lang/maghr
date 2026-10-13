@@ -80,6 +80,8 @@ function toEmployee(r: Row): Employee {
     managerName: s(r.manager_name),
     employmentType: s(r.employment_type, "Full-time") as Employee["employmentType"],
     exitedOn: (r.exited_on as string | null) ?? null,
+    exitReason: s(r.exit_reason),
+    exitChecklist: Array.isArray(r.exit_checklist) ? r.exit_checklist.filter((x): x is string => typeof x === "string") : [],
   };
 }
 
@@ -466,6 +468,8 @@ export async function writeChanges(supabase: SupabaseClient, orgId: string, befo
       manager_name: e.managerName,
       employment_type: e.employmentType,
       exited_on: e.exitedOn,
+      exit_reason: e.exitReason,
+      exit_checklist: e.exitChecklist,
     };
     if (!prev) {
       if (e.source === "Converted from candidate") continue;

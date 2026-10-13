@@ -187,6 +187,8 @@ export interface Employee {
   managerName: string;
   employmentType: EmploymentType;
   exitedOn: string | null;
+  exitReason: string;
+  exitChecklist: string[];
 }
 
 export const EMPLOYEE_STATUSES = ["Active", "Onboarding", "Exited"] as const;
