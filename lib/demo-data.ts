@@ -3,9 +3,11 @@
 // Do not replace these with real candidate or employee records.
 
 import type { CompanyHoliday } from "./holidays";
+import { lagosDate, lagosTime, lagosToIso, lastDays } from "./attendance";
 import { onboardingTemplate } from "./people";
 import type {
   Activity,
+  AttendanceRecord,
   Candidate,
   CandidateSource,
   CompanySettings,
@@ -42,6 +44,7 @@ export interface DemoState {
   /** Company-declared holidays (Eid, Mawlid, substitute days…). National fixed holidays are calculated. */
   holidays: CompanyHoliday[];
   onboarding: OnboardingTask[];
+  attendance: AttendanceRecord[];
 }
 
 /** Requirements per seeded vacancy. Plain sentences; the match panel looks for CV skills inside them. */
@@ -404,7 +407,7 @@ export function createDemoData(now: Date = new Date()): DemoState {
     createdAt: ago((back * 30) * DAY),
   }));
 
-  const settings: CompanySettings = { companyName: "MyJobMag (demo)", leaveAllowanceDays: 20 };
+  const settings: CompanySettings = { companyName: "MyJobMag (demo)", leaveAllowanceDays: 20, workStart: "09:00" };
 
   const activity: Activity[] = [
     {
@@ -469,6 +472,7 @@ export function createDemoData(now: Date = new Date()): DemoState {
     settings,
     holidays: [{ id: "hol-001", date: `${today.getUTCFullYear()}-12-31`, name: "Company end-of-year day" }],
     onboarding: seedOnboarding(employees, ago),
+    attendance: seedAttendance(employees, today, leave),
   };
 }
 
@@ -479,4 +483,40 @@ function seedOnboarding(employees: Employee[], ago: (ms: number) => string): Onb
   return onboardingTemplate(kemi.id, kemi.startDate, "onb-001").map((t, i) =>
     i < 2 ? { ...t, doneAt: ago((72 - i * 24) * 3_600_000), doneBy: "Grace Nwosu" } : t,
   );
+}
+
+/**
+ * A week of synthetic clock-ins so the attendance board has something to show.
+ * Deterministic (no randomness) so tests and screenshots are stable.
+ */
+function seedAttendance(employees: Employee[], today: Date, leave: LeaveRequest[]): AttendanceRecord[] {
+  const out: AttendanceRecord[] = [];
+  const staff = employees.filter((e) => e.status === "Active");
+  const todayLagos = lagosDate(today.toISOString());
+  const nowMinutes = Number(lagosTime(today.toISOString()).slice(0, 2)) * 60 + Number(lagosTime(today.toISOString()).slice(3));
+  lastDays(todayLagos, 8).forEach((date, d) => {
+    const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+    if (dow === 0 || dow === 6) return;
+    const isToday = date === todayLagos;
+    staff.forEach((e, i) => {
+      if (leave.some((l) => l.employeeId === e.id && l.status === "Approved" && l.startDate <= date && l.endDate >= date)) return;
+      if ((i * 7 + d * 3) % 11 === 0) return; // the odd absence
+      const inMin = 8 * 60 + 20 + ((i * 13 + d * 17) % 70); // 08:20–09:29
+      if (isToday && inMin > nowMinutes) return;
+      const outMin = 17 * 60 + ((i * 11 + d * 7) % 75); // 17:00–18:14
+      const mode = e.location.includes("Remote") ? "Remote" : e.location.includes("Field") ? "Field" : (i + d) % 4 === 0 ? "Remote" : "Office";
+      const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+      out.push({
+        id: `att-${date}-${e.id}`,
+        employeeId: e.id,
+        date,
+        clockIn: lagosToIso(date, hm(inMin)),
+        clockOut: isToday && outMin > nowMinutes ? null : lagosToIso(date, hm(outMin)),
+        mode,
+        correctedBy: "",
+        correctedAt: null,
+      });
+    });
+  });
+  return out;
 }

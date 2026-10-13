@@ -166,9 +166,9 @@ describe("payroll (preview only)", () => {
 describe("settings, reports and permissions", () => {
   it("validates company settings", () => {
     const s = fresh();
-    assert.equal(run(s, { type: "settings/update", id: "s", at, settings: { companyName: "X", leaveAllowanceDays: 20 } }), s);
-    const ok = run(s, { type: "settings/update", id: "s", at, settings: { companyName: "Acme Nigeria", leaveAllowanceDays: 22 } });
-    assert.deepEqual(ok.settings, { companyName: "Acme Nigeria", leaveAllowanceDays: 22 });
+    assert.equal(run(s, { type: "settings/update", id: "s", at, settings: { companyName: "X", leaveAllowanceDays: 20, workStart: "09:00" } }), s);
+    const ok = run(s, { type: "settings/update", id: "s", at, settings: { companyName: "Acme Nigeria", leaveAllowanceDays: 22, workStart: "08:30" } });
+    assert.deepEqual(ok.settings, { companyName: "Acme Nigeria", leaveAllowanceDays: 22, workStart: "08:30" });
   });
 
   it("summarises headcount and time to hire", () => {

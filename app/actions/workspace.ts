@@ -50,6 +50,9 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
   "onboarding/add",
   "onboarding/toggle",
   "onboarding/remove",
+  "attendance/clockIn",
+  "attendance/clockOut",
+  "attendance/correct",
 ]);
 
 function friendly(message: string): string {
@@ -93,6 +96,12 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
       const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());
       const task = before.onboarding.find((t) => t.id === action.taskId);
       if (!mine || !task || task.employeeId !== mine.id || task.owner !== "New hire") return { ok: false, error: "You can only tick off your own onboarding steps." };
+    }
+    // Everyone, HR included, clocks in and out only for themselves. HR fixes mistakes with a correction.
+    if (action.type === "attendance/clockIn" || action.type === "attendance/clockOut") {
+      const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());
+      const targetId = action.type === "attendance/clockIn" ? action.employeeId : before.attendance.find((r) => r.id === action.recordId)?.employeeId;
+      if (!mine || targetId !== mine.id) return { ok: false, error: "You can only clock yourself in and out." };
     }
     const after = appReducer(before, action);
     if (after !== before) await writeChanges(supabase, info.orgId, before, after);

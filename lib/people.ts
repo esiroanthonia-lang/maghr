@@ -3,6 +3,7 @@
 // the same rules again (see supabase/migrations/20261013000001_people.sql).
 
 import type { DemoState } from "./demo-data";
+import { isTime, lagosDate, lagosToIso } from "./attendance";
 import { holidaysBetween } from "./holidays";
 import type {
   CompanySettings,
@@ -16,6 +17,7 @@ import type {
   OnboardingTask,
   PayrollRun,
   ReviewStatus,
+  WorkMode,
 } from "./types";
 
 type State = DemoState;
@@ -75,9 +77,12 @@ export type PeopleAction =
   | ({ type: "onboarding/start"; employeeId: string } & Meta)
   | ({ type: "onboarding/add"; employeeId: string; title: string; owner: OnboardingOwner; dueDate: string | null } & Meta)
   | ({ type: "onboarding/toggle"; taskId: string; done: boolean } & Meta)
-  | ({ type: "onboarding/remove"; taskId: string } & Meta);
+  | ({ type: "onboarding/remove"; taskId: string } & Meta)
+  | ({ type: "attendance/clockIn"; employeeId: string; mode: WorkMode } & Meta)
+  | ({ type: "attendance/clockOut"; recordId: string } & Meta)
+  | ({ type: "attendance/correct"; recordId: string; clockIn: string; clockOut: string | null } & Meta);
 
-export const PEOPLE_PREFIXES = ["employee/", "leave/", "goal/", "review/", "payroll/", "settings/", "onboarding/"];
+export const PEOPLE_PREFIXES = ["employee/", "leave/", "goal/", "review/", "payroll/", "settings/", "onboarding/", "attendance/"];
 
 // ---------- onboarding ----------
 
@@ -360,10 +365,11 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     case "settings/update": {
       const name = action.settings.companyName.trim();
       const days = Math.round(action.settings.leaveAllowanceDays);
-      if (name.length < 2 || !(days >= 0 && days <= 60)) return state;
+      const workStart = action.settings.workStart ?? state.settings.workStart;
+      if (name.length < 2 || !(days >= 0 && days <= 60) || !isTime(workStart)) return state;
       return {
         ...state,
-        settings: { companyName: name, leaveAllowanceDays: days },
+        settings: { companyName: name, leaveAllowanceDays: days, workStart },
         activity: log(state, action.id, action.at, "settings", "Company settings updated", name),
       };
     }
@@ -412,6 +418,31 @@ export function peopleReducer(state: State, action: PeopleAction): State {
         ...state,
         onboarding: next,
         activity: finished ? log(state, action.id, action.at, "employee", "Onboarding complete", nameOf(state, task.employeeId)) : state.activity,
+      };
+    }
+    case "attendance/clockIn": {
+      const emp = state.employees.find((e) => e.id === action.employeeId);
+      const date = lagosDate(action.at);
+      if (!emp || emp.status === "Exited" || state.attendance.some((r) => r.employeeId === emp.id && r.date === date)) return state;
+      return {
+        ...state,
+        attendance: [...state.attendance, { id: action.id, employeeId: emp.id, date, clockIn: action.at, clockOut: null, mode: action.mode, correctedBy: "", correctedAt: null }],
+      };
+    }
+    case "attendance/clockOut": {
+      const rec = state.attendance.find((r) => r.id === action.recordId);
+      if (!rec || rec.clockOut || Date.parse(action.at) <= Date.parse(rec.clockIn)) return state;
+      return { ...state, attendance: state.attendance.map((r) => (r.id === rec.id ? { ...r, clockOut: action.at } : r)) };
+    }
+    case "attendance/correct": {
+      const rec = state.attendance.find((r) => r.id === action.recordId);
+      if (!rec || !isTime(action.clockIn) || (action.clockOut !== null && (!isTime(action.clockOut) || action.clockOut <= action.clockIn))) return state;
+      const clockIn = lagosToIso(rec.date, action.clockIn);
+      const clockOut = action.clockOut === null ? null : lagosToIso(rec.date, action.clockOut);
+      return {
+        ...state,
+        attendance: state.attendance.map((r) => (r.id === rec.id ? { ...r, clockIn, clockOut, correctedBy: by, correctedAt: action.at } : r)),
+        activity: log(state, action.id, action.at, "employee", "Attendance corrected", `${nameOf(state, rec.employeeId)} · ${rec.date}`),
       };
     }
     case "onboarding/remove": {

@@ -9,6 +9,7 @@ import { Avatar, Badge, EmptyState, Notice, Panel } from "../ui/bits";
 import { Field } from "../ui/Field";
 import { Icon } from "../ui/Icon";
 import { useToast } from "../ui/Toast";
+import { ClockCard } from "./Attendance";
 import { OnboardingChecklist } from "./Onboarding";
 import { usePeople } from "./usePeople";
 
@@ -109,6 +110,7 @@ export function MyView() {
 
       <div className="dashboard-grid">
         <div>
+          <ClockCard me={me} />
           <Panel title="Request time off" subtitle="Goes to HR and your manager for approval">
             <form className="panel-body" onSubmit={submit} noValidate>
               <div className="form-grid">

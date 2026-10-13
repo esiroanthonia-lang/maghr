@@ -33,6 +33,10 @@ const ACTION_ROLES: [prefix: string, roles: Role[]][] = [
   ["leave/request", ["hr_admin", "manager", "recruiter", "employee"]],
   ["leave/cancel", ["hr_admin", "manager", "recruiter", "employee"]],
   // New hires tick off their own steps; the server checks the step is theirs and marked "New hire".
+  // Everyone clocks themselves in and out; the server checks it's their own record.
+  ["attendance/clockIn", ["hr_admin", "manager", "recruiter", "employee"]],
+  ["attendance/clockOut", ["hr_admin", "manager", "recruiter", "employee"]],
+  ["attendance/", ["hr_admin"]],
   ["onboarding/toggle", ["hr_admin", "manager", "recruiter", "employee"]],
   ["onboarding/", ["hr_admin", "manager"]],
   ["employee/", ["hr_admin"]],

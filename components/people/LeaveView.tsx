@@ -4,12 +4,13 @@ import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
 import { holidaysForState, leaveBalance, onLeaveOn, toCsv, workingDays, type LeaveInput } from "@/lib/people";
 import { LEAVE_STATUSES, LEAVE_TYPES, type LeaveStatus, type LeaveType } from "@/lib/types";
-import { Avatar, Badge, EmptyState, Notice, PageHeader, Panel, RelativeTime, StatCard } from "../ui/bits";
+import { Avatar, Badge, EmptyState, PageHeader, Panel, RelativeTime, StatCard } from "../ui/bits";
 import { downloadText } from "../ui/download";
 import { Field } from "../ui/Field";
 import { Icon } from "../ui/Icon";
 import { Modal } from "../ui/Modal";
 import { useToast } from "../ui/Toast";
+import { AttendanceBoard } from "./Attendance";
 import { usePeople } from "./usePeople";
 
 const d = (iso: string) => formatDate(`${iso}T12:00:00Z`);
@@ -97,7 +98,7 @@ function LeaveForm({ onSubmit, onCancel }: { onSubmit: (input: LeaveInput) => vo
 export function LeaveView() {
   const { state, act, can, todayIso, year } = usePeople();
   const toast = useToast();
-  const [tab, setTab] = useState<"requests" | "out" | "balances">("requests");
+  const [tab, setTab] = useState<"requests" | "out" | "balances" | "attendance">("requests");
   const [filter, setFilter] = useState<LeaveStatus | "all">("Pending");
   const [showForm, setShowForm] = useState(false);
   const name = (id: string) => state.employees.find((e) => e.id === id)?.name ?? "Unknown";
@@ -159,6 +160,7 @@ export function LeaveView() {
             ["requests", "Requests", pending.length],
             ["out", "Who’s out", upcoming.length],
             ["balances", "Balances", null],
+            ["attendance", "Attendance", null],
           ] as const
         ).map(([id, label, count]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className="tab" onClick={() => setTab(id)}>
@@ -167,6 +169,8 @@ export function LeaveView() {
           </button>
         ))}
       </div>
+
+      {tab === "attendance" ? <AttendanceBoard /> : null}
 
       {tab === "requests" ? (
         <>
@@ -323,10 +327,6 @@ export function LeaveView() {
           </div>
         </Panel>
       ) : null}
-
-      <div style={{ marginTop: 14 }}>
-        <Notice>Attendance (clock-in) isn’t connected yet. It needs a time-tracking device or app integration.</Notice>
-      </div>
 
       {showForm ? (
         <Modal title="Record a leave request" onClose={() => setShowForm(false)}>

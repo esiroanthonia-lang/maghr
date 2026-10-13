@@ -12,10 +12,11 @@ export function CompanySettingsPanel() {
   const toast = useToast();
   const [name, setName] = useState(state.settings.companyName);
   const [days, setDays] = useState(String(state.settings.leaveAllowanceDays));
+  const [start, setStart] = useState(state.settings.workStart);
   const editable = can("settings/update");
   const n = Number(days);
-  const valid = name.trim().length >= 2 && Number.isInteger(n) && n >= 0 && n <= 60;
-  const changed = name.trim() !== state.settings.companyName || n !== state.settings.leaveAllowanceDays;
+  const valid = name.trim().length >= 2 && Number.isInteger(n) && n >= 0 && n <= 60 && /^([01]\d|2[0-3]):[0-5]\d$/.test(start);
+  const changed = name.trim() !== state.settings.companyName || n !== state.settings.leaveAllowanceDays || start !== state.settings.workStart;
 
   return (
     <Panel title="Company" subtitle={editable ? "Applies to everyone in this workspace" : "Only HR admins can change these"}>
@@ -23,8 +24,8 @@ export function CompanySettingsPanel() {
         className="panel-body settings-form"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!valid) return toast("Check the company name and allowance (0–60 days).");
-          act({ type: "settings/update", settings: { companyName: name.trim(), leaveAllowanceDays: n } });
+          if (!valid) return toast("Check the company name, allowance (0–60 days) and start time.");
+          act({ type: "settings/update", settings: { companyName: name.trim(), leaveAllowanceDays: n, workStart: start } });
           toast("Company settings saved.");
         }}
       >
@@ -36,6 +37,11 @@ export function CompanySettingsPanel() {
           <label htmlFor="set-days">Annual leave allowance (working days)</label>
           <input id="set-days" inputMode="numeric" value={days} disabled={!editable} onChange={(e) => setDays(e.target.value)} />
           <span className="hint">Used for every employee’s balance. Nigeria’s Labour Act sets a minimum of 6 working days after 12 months’ service; most companies give more.</span>
+        </div>
+        <div className="field">
+          <label htmlFor="set-start">Working day starts at</label>
+          <input id="set-start" type="time" value={start} disabled={!editable} onChange={(e) => setStart(e.target.value)} />
+          <span className="hint">Lagos time. Clock-ins more than 15 minutes after this are marked late on the attendance board.</span>
         </div>
         <div className="field">
           <label htmlFor="set-currency">Currency</label>

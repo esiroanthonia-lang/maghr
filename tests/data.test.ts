@@ -182,7 +182,20 @@ describe("writeChanges", () => {
 
   it("people: settings update the organisation row", async () => {
     const s = base();
-    const calls = await apply(s, { type: "settings/update", id: uuid(10), at, settings: { companyName: "Acme Nigeria", leaveAllowanceDays: 22 } });
+    const calls = await apply(s, { type: "settings/update", id: uuid(10), at, settings: { companyName: "Acme Nigeria", leaveAllowanceDays: 22, workStart: "09:00" } });
     assert.deepEqual(calls.find((c) => c.table === "organizations")?.payload, { name: "Acme Nigeria", leave_allowance_days: 22 });
+  });
+  it("attendance: clock-in leaves times to the database; corrections send corrected_at", async () => {
+    const s = base();
+    const emp = s.employees.find((e) => e.status === "Active" && !s.attendance.some((r) => r.employeeId === e.id && r.date === "2026-10-12"))!;
+    const calls = await apply(s, { type: "attendance/clockIn", employeeId: emp.id, mode: "Field", id: uuid(20), at: "2026-10-12T08:00:00.000Z" });
+    const ins = calls.find((c) => c.table === "attendance");
+    assert.equal(ins?.op, "insert");
+    assert.deepEqual(ins?.payload, { id: uuid(20), org_id: ORG, employee_id: emp.id, date: "2026-10-12", mode: "Field" });
+    const rec = s.attendance.find((r) => r.clockOut)!;
+    const fix = await apply(s, { type: "attendance/correct", recordId: rec.id, clockIn: "08:00", clockOut: "16:00", id: uuid(21), at: "2026-10-12T13:00:00.000Z" });
+    const up = fix.find((c) => c.table === "attendance");
+    assert.equal(up?.op, "update");
+    assert.ok((up?.payload as { corrected_at?: string }).corrected_at);
   });
 });

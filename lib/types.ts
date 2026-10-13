@@ -271,6 +271,23 @@ export interface PayrollRun {
 export interface CompanySettings {
   companyName: string;
   leaveAllowanceDays: number;
+  /** Usual start of the working day, HH:MM in Lagos time. Used to flag late clock-ins. */
+  workStart: string;
+}
+
+export const WORK_MODES = ["Office", "Remote", "Field"] as const;
+export type WorkMode = (typeof WORK_MODES)[number];
+
+/** One person's clock-in for one (Lagos) day. Times are ISO timestamps set by the server. */
+export interface AttendanceRecord {
+  id: string;
+  employeeId: string;
+  date: string;
+  clockIn: string;
+  clockOut: string | null;
+  mode: WorkMode;
+  correctedBy: string;
+  correctedAt: string | null;
 }
 
 export type ActivityKind = "application" | "stage" | "interview" | "offer" | "job" | "employee" | "note" | "publish" | "sourcing" | "whatsapp" | "leave" | "performance" | "payroll" | "settings";
