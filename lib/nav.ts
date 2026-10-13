@@ -14,6 +14,11 @@ export const WORKSPACE_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: "overview", ready: true },
   { href: "/team", label: "My team", icon: "people", ready: true },
   { href: "/me", label: "My space", icon: "user", ready: true },
+  { href: "/me/profile", label: "My profile", icon: "user", ready: true },
+  { href: "/me/leave", label: "My leave", icon: "calendar", ready: true },
+  { href: "/me/attendance", label: "My attendance", icon: "clock", ready: true },
+  { href: "/me/payslips", label: "My payslips", icon: "naira", ready: true },
+  { href: "/me/performance", label: "My performance", icon: "trend", ready: true },
   { href: "/employees", label: "Employees", icon: "people", ready: true },
   { href: "/recruitment", label: "Recruitment", icon: "search", ready: true },
   { href: "/whatsapp", label: "WhatsApp desk", icon: "chat", ready: true },
@@ -29,7 +34,7 @@ export const MANAGE_NAV: NavItem[] = [
 
 export function pageTitle(pathname: string, role?: Role): string {
   const all = [...WORKSPACE_NAV, ...MANAGE_NAV];
-  const match = all.find((n) => (n.href === "/" ? pathname === "/" : pathname.startsWith(n.href)));
+  const match = all.sort((a, b) => b.href.length - a.href.length).find((n) => (n.href === "/" ? pathname === "/" : pathname === n.href || pathname.startsWith(`${n.href}/`)));
   if (pathname === "/" && role) return DASHBOARD_NAME[role];
   return match?.label ?? "Overview";
 }

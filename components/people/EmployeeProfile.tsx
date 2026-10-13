@@ -16,6 +16,7 @@ import { EmployeeForm } from "./EmployeeForm";
 import { OnboardingChecklist } from "./Onboarding";
 import { BankForm, JobDetailsForm, PersonalForm } from "./RecordForms";
 import { usePeople } from "./usePeople";
+import { myEmployeeEmail } from "@/lib/workspace";
 
 const statusTone = (s: EmployeeStatus) => (s === "Active" ? "ok" : s === "Onboarding" ? "info" : "neutral");
 const d = (iso: string) => (iso ? formatDate(`${iso}T12:00:00Z`) : "—");
@@ -64,7 +65,7 @@ function tenure(start: string, today: string | null): string {
 }
 
 export function EmployeeProfile({ employeeId }: { employeeId: string }) {
-  const { state, act, can, isAdmin, todayIso, year, now, workspace } = usePeople();
+  const { state, act, can, isAdmin, todayIso, year, now, workspace, role } = usePeople();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("overview");
   const [editing, setEditing] = useState<null | "basics" | "personal" | "job" | "bank">(null);
@@ -84,7 +85,7 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
     );
   }
 
-  const myEmail = workspace.mode === "live" ? workspace.me.email.toLowerCase() : "grace.nwosu@example.com";
+  const myEmail = myEmployeeEmail(workspace, role) ?? "";
   const isSelf = e.email.toLowerCase() === myEmail;
   const hasRecord = Boolean(state.records[e.id]) || isAdmin;
   const rec = state.records[e.id] ?? emptyRecord();

@@ -16,7 +16,7 @@ export const ROLE_PAGES: Record<Role, string[]> = {
   hr_admin: ["/", "/me", "/employees", "/recruitment", "/whatsapp", "/leave", "/payroll", "/performance", "/reports", "/settings"],
   recruiter: ["/", "/me", "/recruitment", "/whatsapp", "/settings"],
   manager: ["/", "/team", "/me", "/leave", "/performance", "/settings"],
-  employee: ["/", "/me", "/settings"],
+  employee: ["/", "/me", "/me/profile", "/me/leave", "/me/attendance", "/me/payslips", "/me/performance", "/settings"],
 };
 
 export function canOpen(role: Role, pathname: string): boolean {
