@@ -37,7 +37,7 @@ describe("role pages and menus", () => {
     assert.equal(navFor("hr_admin", false).workspace[0].label, "People overview");
     assert.equal(navFor("recruiter", false).workspace[0].label, "Hiring desk");
     assert.equal(navFor("manager", false).workspace[0].label, "Team overview");
-    assert.deepEqual(navFor("employee", false).workspace.map((n) => n.href), ["/me"]);
+    assert.deepEqual(navFor("employee", false).workspace.map((n) => n.href), ["/me", "/me/profile", "/me/leave", "/me/attendance", "/me/payslips", "/me/performance"]);
     assert.ok(navFor("recruiter", false).workspace.some((n) => n.href === "/whatsapp"));
     assert.ok(!navFor("recruiter", true).workspace.some((n) => n.href === "/whatsapp"));
   });
@@ -125,3 +125,4 @@ describe("dashboard numbers", () => {
     assert.equal(clockedInToday(state, new Set([e.id]), "2026-10-13T10:00:00.000Z").size, 0);
   });
 });
+
