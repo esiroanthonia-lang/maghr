@@ -1,240 +1,22 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
-import { formatDate, pluralise } from "@/lib/format";
-import { formatNaira, leaveBalance, toCsv } from "@/lib/people";
-import { DEPARTMENTS, EMPLOYEE_STATUSES, type Department, type Employee, type EmployeeStatus } from "@/lib/types";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { completeness, emptyRecord, missingItems } from "@/lib/employee-record";
+import { pluralise } from "@/lib/format";
+import { formatNaira, toCsv } from "@/lib/people";
+import { DEPARTMENTS, EMPLOYEE_STATUSES, type Department, type EmployeeStatus } from "@/lib/types";
 import { Avatar, Badge, EmptyState, Notice, PageHeader, Panel, StatCard } from "../ui/bits";
 import { downloadText } from "../ui/download";
 import { Icon } from "../ui/Icon";
-import { Modal, useDialogBehaviour } from "../ui/Modal";
+import { Modal } from "../ui/Modal";
 import { useToast } from "../ui/Toast";
 import { EmployeeForm } from "./EmployeeForm";
-import { OnboardingChecklist, OnboardingPanel } from "./Onboarding";
+import { OnboardingPanel } from "./Onboarding";
 import { usePeople } from "./usePeople";
 
 const statusTone = (s: EmployeeStatus) => (s === "Active" ? "ok" : s === "Onboarding" ? "info" : "neutral");
-
-function EmployeeDrawer({ employee, onClose, onEdit }: { employee: Employee; onClose: () => void; onEdit: () => void }) {
-  const { state, act, can, isAdmin, year, todayIso } = usePeople();
-  const toast = useToast();
-  const ref = useDialogBehaviour(onClose);
-  const titleId = useId();
-  const [payDraft, setPayDraft] = useState("");
-  const [rentDraft, setRentDraft] = useState("");
-  const [exitDate, setExitDate] = useState<string | null>(null);
-  const pay = state.pay[employee.id];
-  const balance = year ? leaveBalance(state, employee.id, year) : null;
-  const recentLeave = state.leave.filter((l) => l.employeeId === employee.id).slice(0, 5);
-  const review = [...state.reviews].filter((r) => r.employeeId === employee.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-  const reports = state.employees.filter((e) => e.managerName === employee.name && e.status !== "Exited");
-
-  return (
-    <div className="drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <div className="drawer-head">
-          <Avatar name={employee.name} large />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 id={titleId}>{employee.name}</h2>
-            <p>
-              {employee.jobTitle} · {employee.department}
-            </p>
-            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-              <Badge tone={statusTone(employee.status)}>{employee.status}</Badge>
-              <Badge tone="neutral">{employee.employmentType}</Badge>
-            </div>
-          </div>
-          <button type="button" className="close" onClick={onClose} aria-label="Close employee profile">
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-
-        <section className="drawer-section" aria-label="Details">
-          <h3>Details</h3>
-          <dl className="kv">
-            <dt>Email</dt>
-            <dd>{employee.email}</dd>
-            <dt>Phone</dt>
-            <dd>{employee.phone || "—"}</dd>
-            <dt>Location</dt>
-            <dd>{employee.location || "—"}</dd>
-            <dt>Manager</dt>
-            <dd>{employee.managerName || "—"}</dd>
-            <dt>Started</dt>
-            <dd>{formatDate(`${employee.startDate}T12:00:00Z`)}</dd>
-            {employee.exitedOn ? (
-              <>
-                <dt>Last day</dt>
-                <dd>{formatDate(`${employee.exitedOn}T12:00:00Z`)}</dd>
-              </>
-            ) : null}
-            <dt>Direct reports</dt>
-            <dd>{reports.length ? reports.map((r) => r.name).join(", ") : "None"}</dd>
-          </dl>
-          {can("employee/update") && employee.status !== "Exited" ? (
-            <div className="button-row" style={{ marginTop: 14 }}>
-              <button type="button" className="btn small" onClick={onEdit}>
-                Edit details
-              </button>
-              <button type="button" className="btn small danger" onClick={() => setExitDate(todayIso ?? "")}>
-                Record exit
-              </button>
-            </div>
-          ) : null}
-          {exitDate !== null ? (
-            <div className="notice warn" style={{ marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <label htmlFor={`${titleId}-exit`} style={{ flex: 1, minWidth: 160 }}>
-                Last working day for {employee.name}
-              </label>
-              <input id={`${titleId}-exit`} type="date" className="control" value={exitDate} onChange={(e) => setExitDate(e.target.value)} />
-              <button type="button" className="btn small" onClick={() => setExitDate(null)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn small dark"
-                disabled={!exitDate}
-                onClick={() => {
-                  act({ type: "employee/exit", employeeId: employee.id, date: exitDate });
-                  toast(`Exit recorded for ${employee.name}.`);
-                  setExitDate(null);
-                }}
-              >
-                Confirm exit
-              </button>
-            </div>
-          ) : null}
-        </section>
-
-        {isAdmin ? (
-          <section className="drawer-section" aria-label="Pay">
-            <h3>Pay · HR admins only</h3>
-            <p style={{ margin: "0 0 10px", fontSize: 13 }}>
-              Monthly gross: <strong>{typeof pay === "number" ? formatNaira(pay) : "Not set"}</strong>
-            </p>
-            {can("employee/setPay") && employee.status !== "Exited" ? (
-              <form
-                className="inline-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const amount = Number(payDraft.replace(/[,\s₦]/g, ""));
-                  if (!(amount >= 0 && amount < 1e9)) {
-                    toast("Enter a monthly amount in naira, e.g. 450000.");
-                    return;
-                  }
-                  act({ type: "employee/setPay", employeeId: employee.id, monthlyGross: amount });
-                  toast(`Pay updated for ${employee.name}.`);
-                  setPayDraft("");
-                }}
-              >
-                <label htmlFor={`${titleId}-pay`} className="sr-only">
-                  New monthly gross pay
-                </label>
-                <input id={`${titleId}-pay`} className="control" inputMode="numeric" placeholder="New monthly gross, e.g. 500000" value={payDraft} onChange={(e) => setPayDraft(e.target.value)} />
-                <button className="btn" disabled={!payDraft.trim()}>
-                  Update
-                </button>
-              </form>
-            ) : null}
-            <p style={{ margin: "14px 0 8px", fontSize: 13 }}>
-              Annual rent declared: <strong>{state.rent[employee.id] ? formatNaira(state.rent[employee.id]) : "None"}</strong>
-              <span className="stat-foot"> · used for PAYE rent relief</span>
-            </p>
-            {can("employee/setRent") && employee.status !== "Exited" ? (
-              <form
-                className="inline-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const amount = Number(rentDraft.replace(/[,\s₦]/g, ""));
-                  if (!(amount >= 0 && amount < 1e10)) {
-                    toast("Enter the yearly rent in naira, e.g. 1500000. Use 0 for none.");
-                    return;
-                  }
-                  act({ type: "employee/setRent", employeeId: employee.id, annualRent: amount });
-                  toast(`Rent updated for ${employee.name}. Keep the receipt or tenancy agreement on file.`);
-                  setRentDraft("");
-                }}
-              >
-                <label htmlFor={`${titleId}-rent`} className="sr-only">
-                  Annual rent paid
-                </label>
-                <input id={`${titleId}-rent`} className="control" inputMode="numeric" placeholder="Annual rent paid, e.g. 1500000" value={rentDraft} onChange={(e) => setRentDraft(e.target.value)} />
-                <button className="btn" disabled={!rentDraft.trim()}>
-                  Save rent
-                </button>
-              </form>
-            ) : null}
-          </section>
-        ) : null}
-
-        {employee.status === "Onboarding" || state.onboarding.some((t) => t.employeeId === employee.id) ? (
-          <section className="drawer-section" aria-label="Onboarding">
-            <h3>Onboarding</h3>
-            <OnboardingChecklist employee={employee} mode="manage" />
-          </section>
-        ) : null}
-
-        <section className="drawer-section" aria-label="Leave">
-          <h3>Leave {year ?? ""}</h3>
-          {balance ? (
-            <div className="mini-stats">
-              <div>
-                <strong>{balance.remaining}</strong>
-                <span>days left</span>
-              </div>
-              <div>
-                <strong>{balance.taken}</strong>
-                <span>taken</span>
-              </div>
-              <div>
-                <strong>{balance.pending}</strong>
-                <span>pending</span>
-              </div>
-              <div>
-                <strong>{balance.allowance}</strong>
-                <span>allowance</span>
-              </div>
-            </div>
-          ) : null}
-          {recentLeave.length ? (
-            <ul className="timeline" style={{ marginTop: 12 }}>
-              {recentLeave.map((l) => (
-                <li key={l.id} style={{ justifyContent: "space-between" }}>
-                  <div>
-                    <strong>{l.leaveType}</strong> · {l.days} day{l.days === 1 ? "" : "s"}
-                    <span>
-                      {formatDate(`${l.startDate}T12:00:00Z`)} – {formatDate(`${l.endDate}T12:00:00Z`)}
-                    </span>
-                  </div>
-                  <Badge tone={l.status === "Approved" ? "ok" : l.status === "Pending" ? "warn" : "neutral"}>{l.status}</Badge>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="stat-foot" style={{ margin: "10px 0 0" }}>
-              No leave recorded.
-            </p>
-          )}
-        </section>
-
-        <section className="drawer-section" aria-label="Performance" style={{ borderBottom: 0 }}>
-          <h3>Latest review</h3>
-          {review ? (
-            <p style={{ margin: 0, fontSize: 13 }}>
-              {review.cycle}: <strong>{review.status}</strong>
-              {review.rating ? ` · ${review.rating}/5` : ""}
-              {review.reviewerName ? ` · ${review.reviewerName}` : ""}
-            </p>
-          ) : (
-            <p className="stat-foot" style={{ margin: 0 }}>
-              No review yet.
-            </p>
-          )}
-        </section>
-      </div>
-    </div>
-  );
-}
 
 export function EmployeesView() {
   const { state, act, can, isAdmin } = usePeople();
@@ -242,7 +24,7 @@ export function EmployeesView() {
   const [query, setQuery] = useState("");
   const [dept, setDept] = useState<Department | "all">("all");
   const [status, setStatus] = useState<EmployeeStatus | "current">("current");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const router = useRouter();
   const [form, setForm] = useState<{ mode: "add" } | { mode: "edit"; id: string } | null>(null);
 
   const current = state.employees.filter((e) => e.status !== "Exited");
@@ -253,7 +35,6 @@ export function EmployeesView() {
     if (dept !== "all" && e.department !== dept) return false;
     return !q || [e.name, e.email, e.jobTitle, e.location, e.managerName].some((v) => v.toLowerCase().includes(q));
   });
-  const open = state.employees.find((e) => e.id === openId) ?? null;
   const editing = form?.mode === "edit" ? state.employees.find((e) => e.id === form.id) : undefined;
 
   function exportCsv() {
@@ -327,7 +108,7 @@ export function EmployeesView() {
         </div>
       </div>
 
-      <OnboardingPanel onOpen={setOpenId} />
+      <OnboardingPanel onOpen={(id) => router.push(`/employees/${id}`)} />
 
       {state.employees.length === 0 ? (
         <Panel title="Directory">
@@ -361,19 +142,20 @@ export function EmployeesView() {
                     <th scope="col">Location</th>
                     <th scope="col">Status</th>
                     {isAdmin ? <th scope="col">Monthly gross</th> : null}
+                    {isAdmin ? <th scope="col">Profile</th> : null}
                   </tr>
                 </thead>
                 <tbody>
                   {list.map((e) => (
                     <tr key={e.id} data-employee={e.id}>
                       <td>
-                        <button type="button" className="row-btn" onClick={() => setOpenId(e.id)}>
+                        <Link href={`/employees/${e.id}`} className="row-btn">
                           <Avatar name={e.name} />
                           <span className="person-info">
                             <strong>{e.name}</strong>
                             <span>{e.email}</span>
                           </span>
-                        </button>
+                        </Link>
                       </td>
                       <td>{e.department}</td>
                       <td>{e.jobTitle}</td>
@@ -383,6 +165,13 @@ export function EmployeesView() {
                         <Badge tone={statusTone(e.status)}>{e.status}</Badge>
                       </td>
                       {isAdmin ? <td>{typeof state.pay[e.id] === "number" ? formatNaira(state.pay[e.id]) : <span className="stat-foot">Not set</span>}</td> : null}
+                      {isAdmin ? (
+                        <td>
+                          <span className="complete-chip" title={`Missing: ${missingItems(state.records[e.id] ?? emptyRecord(), state.bank[e.id] ?? null, { includeBank: true }).join(", ") || "nothing"}`}>
+                            {completeness(state.records[e.id] ?? emptyRecord(), state.bank[e.id] ?? null, { includeBank: true })}%
+                          </span>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -395,7 +184,6 @@ export function EmployeesView() {
         Exports never include pay or bank details.
       </p>
 
-      {open ? <EmployeeDrawer key={open.id} employee={open} onClose={() => setOpenId(null)} onEdit={() => setForm({ mode: "edit", id: open.id })} /> : null}
 
       {form ? (
         <Modal title={form.mode === "add" ? "Add an employee" : `Edit ${editing?.name ?? "employee"}`} onClose={() => setForm(null)} wide>

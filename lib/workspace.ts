@@ -39,6 +39,8 @@ const ACTION_ROLES: [prefix: string, roles: Role[]][] = [
   ["attendance/", ["hr_admin"]],
   ["onboarding/toggle", ["hr_admin", "manager", "recruiter", "employee"]],
   ["onboarding/", ["hr_admin", "manager"]],
+  // People update their own personal details; the server and database check it's their own.
+  ["employee/updatePersonal", ["hr_admin", "manager", "recruiter", "employee"]],
   ["employee/", ["hr_admin"]],
   ["leave/", ["hr_admin", "manager"]],
   ["goal/", ["hr_admin", "manager"]],

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, type ReactNode } from "react";
 import type { ApplyState } from "@/app/actions/careers";
 
 const INITIAL: ApplyState = { status: "idle", message: "", errors: {} };
@@ -21,7 +21,7 @@ export function ApplyForm({ action, company, jobTitle }: { action: (prev: ApplyS
     );
   }
 
-  const field = (name: string, label: string, input: React.ReactNode, hint?: string) => (
+  const field = (name: string, label: string, input: ReactNode, hint?: string) => (
     <div className={`apply-field ${err(name) ? "has-error" : ""}`}>
       <label htmlFor={`ap-${name}`}>{label}</label>
       {input}

@@ -34,6 +34,9 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
   "employee/setPay",
   "employee/exit",
   "employee/setRent",
+  "employee/updatePersonal",
+  "employee/updateJob",
+  "employee/updateBank",
   "leave/request",
   "leave/decide",
   "leave/cancel",
@@ -94,6 +97,11 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
       const targetId =
         action.type === "leave/request" ? action.input.employeeId : before.leave.find((l) => l.id === action.leaveId)?.employeeId;
       if (!mine || targetId !== mine.id) return { ok: false, error: "You can only manage your own leave." };
+    }
+    // Only HR admins edit other people's personal details.
+    if (action.type === "employee/updatePersonal" && info.me.role !== "hr_admin") {
+      const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());
+      if (!mine || action.employeeId !== mine.id) return { ok: false, error: "You can only update your own details." };
     }
     // Outside HR and managers, people may only tick their own "New hire" onboarding steps.
     if (action.type === "onboarding/toggle" && !["hr_admin", "manager"].includes(info.me.role)) {

@@ -7,6 +7,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DemoState } from "../demo-data";
+import { normaliseBank, normaliseJob, normalisePersonal } from "../employee-record";
 import { normaliseConfig } from "../paye";
 import type { Activity, AttendanceRecord, Candidate, Employee, Goal, Interview, Job, LeaveRequest, Note, OnboardingTask, PayrollLine, PayrollRun, Review, SelfServiceRequest, StageChange } from "../types";
 
@@ -157,7 +158,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
   ]);
   const since = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
-  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows, attendanceRows, workStartRows, careersRows, payrollConfigRows, rentRows, lineRows] = await Promise.all([
+  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows, attendanceRows, workStartRows, careersRows, payrollConfigRows, rentRows, lineRows, recordRows, bankRows] = await Promise.all([
     rows(supabase.from("organizations").select("name, leave_allowance_days").eq("id", orgId).limit(1)),
     optionalRows(supabase.from("employee_compensation").select("employee_id, monthly_gross").eq("org_id", orgId)), // HR admins only (RLS)
     optionalRows(supabase.from("leave_requests").select("*").eq("org_id", orgId).order("start_date", { ascending: false }).limit(500)),
@@ -172,6 +173,8 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     optionalRows(supabase.from("organizations").select("payroll_config").eq("id", orgId).limit(1)), // PAYE migration
     optionalRows(supabase.from("employee_compensation").select("employee_id, annual_rent").eq("org_id", orgId)), // HR admins; staff see their own
     optionalRows(supabase.from("payroll_lines").select("*").eq("org_id", orgId).order("created_at", { ascending: false }).limit(5000)), // HR; staff own approved
+    optionalRows(supabase.from("employee_records").select("employee_id, personal, job").eq("org_id", orgId)), // HR; staff own
+    optionalRows(supabase.from("employee_bank").select("employee_id, data").eq("org_id", orgId)), // HR; staff own (read)
   ]);
 
   const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
@@ -251,6 +254,8 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     },
     holidays: holidayRows.map((r) => ({ id: s(r.id), date: s(r.date), name: s(r.name) })),
     payrollConfig: normaliseConfig(payrollConfigRows[0]?.payroll_config),
+    records: Object.fromEntries(recordRows.map((r) => [s(r.employee_id), { personal: normalisePersonal(r.personal), job: normaliseJob(r.job) }])),
+    bank: Object.fromEntries(bankRows.map((r) => [s(r.employee_id), normaliseBank(r.data)])),
     rent: Object.fromEntries(rentRows.filter((r) => Number(r.annual_rent) > 0).map((r) => [s(r.employee_id), Number(r.annual_rent)])),
     payrollLines: lineRows.map((r) => ({
       id: s(r.id),
@@ -577,6 +582,28 @@ export async function writeChanges(supabase: SupabaseClient, orgId: string, befo
         await check(supabase.from("payroll_runs").update({ status: r.status }).eq("id", r.id));
       }
     }
+  }
+
+  // Employee records (personal: HR or the person; job: HR only) and bank details (HR only)
+  for (const [employeeId, rec] of Object.entries(after.records)) {
+    const prev = before.records[employeeId];
+    if (prev && same(prev, rec)) continue;
+    if (!prev) {
+      // A new record started by the person themselves has no job details (the database refuses them from non-HR users).
+      const jobEmpty = !Object.values(rec.job).some((v) => (Array.isArray(v) ? v.length : Boolean(v)));
+      await check(
+        supabase.from("employee_records").upsert({ org_id: orgId, employee_id: employeeId, personal: rec.personal, ...(jobEmpty ? {} : { job: rec.job }) }, { onConflict: "employee_id" }),
+      );
+    } else {
+      const patch: Record<string, unknown> = {};
+      if (!same(prev.personal, rec.personal)) patch.personal = rec.personal;
+      if (!same(prev.job, rec.job)) patch.job = rec.job;
+      await check(supabase.from("employee_records").update(patch).eq("employee_id", employeeId));
+    }
+  }
+  for (const [employeeId, b] of Object.entries(after.bank)) {
+    if (before.bank[employeeId] && same(before.bank[employeeId], b)) continue;
+    await check(supabase.from("employee_bank").upsert({ org_id: orgId, employee_id: employeeId, data: b }, { onConflict: "employee_id" }));
   }
 
   // Payroll rules and declared rent (HR admins only)

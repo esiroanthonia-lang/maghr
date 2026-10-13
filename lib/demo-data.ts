@@ -5,6 +5,8 @@
 import type { CompanyHoliday } from "./holidays";
 import { lagosDate, lagosTime, lagosToIso, lastDays } from "./attendance";
 import type { CareersSettings } from "./careers";
+import { seedRecords } from "./demo-records";
+import type { BankDetails, EmployeeRecord } from "./employee-record";
 import { DEFAULT_PAYROLL_CONFIG, type PayrollConfig } from "./paye";
 import { computeRunLines, onboardingTemplate, runTotals } from "./people";
 import type {
@@ -54,6 +56,10 @@ export interface DemoState {
   rent: Record<string, number>;
   /** Payslips inside submitted and approved payroll runs. */
   payrollLines: PayrollLine[];
+  /** Full employee records (personal, next of kin, guarantors, education, job). HR admins and the person only. */
+  records: Record<string, EmployeeRecord>;
+  /** Bank and statutory numbers. HR admins edit; the person reads their own. */
+  bank: Record<string, BankDetails>;
   /** Public careers page settings. Off by default in real workspaces. */
   careers: CareersSettings;
 }
@@ -496,6 +502,7 @@ export function createDemoData(now: Date = new Date()): DemoState {
     payrollConfig,
     rent,
     payrollLines,
+    ...seedRecords(employees),
     settings,
     holidays: [{ id: "hol-001", date: `${today.getUTCFullYear()}-12-31`, name: "Company end-of-year day" }],
     onboarding: seedOnboarding(employees, ago),

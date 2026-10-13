@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
 import { formatNaira, holidaysForState, leaveBalance, periodLabel, workingDays } from "@/lib/people";
@@ -203,7 +204,15 @@ export function MyView() {
         </div>
 
         <div className="right-stack">
-          <Panel title="My details" subtitle="Something wrong? Ask HR to update it.">
+          <Panel
+            title="My details"
+            subtitle="Your address, next of kin and emergency contacts"
+            action={
+              <Link className="btn small" href={`/employees/${me.id}`}>
+                View my full profile
+              </Link>
+            }
+          >
             <div className="panel-body">
               <dl className="kv">
                 <dt>Email</dt>

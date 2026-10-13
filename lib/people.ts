@@ -5,6 +5,7 @@
 import type { DemoState } from "./demo-data";
 import { isTime, lagosDate, lagosToIso } from "./attendance";
 import { validCareersSettings, type CareersSettings } from "./careers";
+import { checkBank, checkJob, checkPersonal, emptyRecord, normaliseBank, normaliseJob, normalisePersonal, type BankDetails, type JobDetails, type PersonalDetails } from "./employee-record";
 import { holidaysBetween } from "./holidays";
 import { computePayslip, validConfig, type PayrollConfig } from "./paye";
 import type {
@@ -65,6 +66,9 @@ export type PeopleAction =
   | ({ type: "employee/setPay"; employeeId: string; monthlyGross: number } & Meta)
   | ({ type: "employee/exit"; employeeId: string; date: string } & Meta)
   | ({ type: "employee/setRent"; employeeId: string; annualRent: number } & Meta)
+  | ({ type: "employee/updatePersonal"; employeeId: string; personal: PersonalDetails } & Meta)
+  | ({ type: "employee/updateJob"; employeeId: string; job: JobDetails } & Meta)
+  | ({ type: "employee/updateBank"; employeeId: string; bank: BankDetails } & Meta)
   | ({ type: "settings/payroll"; config: PayrollConfig; confirm: boolean } & Meta)
   | ({ type: "leave/request"; input: LeaveInput } & Meta)
   | ({ type: "leave/decide"; leaveId: string; status: "Approved" | "Declined" } & Meta)
@@ -94,8 +98,8 @@ export const PEOPLE_PREFIXES = ["employee/", "leave/", "goal/", "review/", "payr
 
 /**
  * A sensible first-weeks checklist for a Nigerian company. Offsets are calendar days from the start date.
- * MagHR only records that a step is done; bank details, RSA PIN, TIN and ID documents stay in the
- * company's secure payroll and records process, not in this app.
+ * The checklist only records that a step is done. The numbers themselves (bank account, RSA PIN, TIN)
+ * go on the employee's Pay & bank tab, which only HR admins and the person can see.
  */
 export const ONBOARDING_TEMPLATE: { title: string; owner: OnboardingOwner; offset: number }[] = [
   { title: "Send offer letter and employment contract", owner: "HR", offset: -10 },
@@ -236,6 +240,31 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     case "employee/setRent": {
       if (!state.employees.some((e) => e.id === action.employeeId) || !(action.annualRent >= 0 && action.annualRent < 1e10)) return state;
       return { ...state, rent: { ...state.rent, [action.employeeId]: Math.round(action.annualRent) } };
+    }
+    case "employee/updatePersonal": {
+      if (!state.employees.some((e) => e.id === action.employeeId)) return state;
+      const personal = normalisePersonal(action.personal);
+      if (Object.keys(checkPersonal(personal, action.at.slice(0, 10))).length) return state;
+      const current = state.records[action.employeeId] ?? emptyRecord();
+      return { ...state, records: { ...state.records, [action.employeeId]: { ...current, personal } } };
+    }
+    case "employee/updateJob": {
+      if (!state.employees.some((e) => e.id === action.employeeId)) return state;
+      const job = normaliseJob(action.job);
+      if (Object.keys(checkJob(job)).length) return state;
+      if (job.staffId && Object.entries(state.records).some(([id, r]) => id !== action.employeeId && r.job.staffId.toLowerCase() === job.staffId.toLowerCase())) return state;
+      const current = state.records[action.employeeId] ?? emptyRecord();
+      return { ...state, records: { ...state.records, [action.employeeId]: { ...current, job } } };
+    }
+    case "employee/updateBank": {
+      if (!state.employees.some((e) => e.id === action.employeeId)) return state;
+      const bank = normaliseBank(action.bank);
+      if (Object.keys(checkBank(bank)).length) return state;
+      return {
+        ...state,
+        bank: { ...state.bank, [action.employeeId]: bank },
+        activity: log(state, action.id, action.at, "employee", "Bank or statutory details updated", nameOf(state, action.employeeId)),
+      };
     }
     case "employee/exit": {
       const e = state.employees.find((x) => x.id === action.employeeId);
