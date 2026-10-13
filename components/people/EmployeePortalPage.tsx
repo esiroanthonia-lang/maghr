@@ -29,6 +29,7 @@ export function EmployeePortalPage({ section }: { section: Section }) {
   const email = myEmployeeEmail(workspace, role);
   const me = state.employees.find((e) => e.email.toLowerCase() === email);
   if (!me) return <Panel title="Your account is not linked yet"><EmptyState title="Ask HR to link your employee record">Your work email is {email}. HR can connect your account by adding that same email to the employee directory.</EmptyState></Panel>;
+  const employeeId = me.id;
 
   if (section === "profile") return <EmployeeProfile employeeId={me.id} />;
 
@@ -58,7 +59,7 @@ export function EmployeePortalPage({ section }: { section: Section }) {
     if (requestedDays < 1) return setError("Those dates include no working days. Choose at least one working day.");
     if (leaveType === "Annual" && balance && requestedDays > balance.remaining - balance.pending) return setError(`That is more than your remaining annual leave (${balance.remaining - balance.pending} days after pending requests).`);
     setError("");
-    act({ type: "leave/request", input: { employeeId: me.id, leaveType, startDate: start, endDate: end, reason } });
+    act({ type: "leave/request", input: { employeeId, leaveType, startDate: start, endDate: end, reason } });
     toast("Leave request sent for approval.");
     setStart(""); setEnd(""); setReason("");
   }
@@ -110,3 +111,4 @@ export function EmployeePortalPage({ section }: { section: Section }) {
     </>
   );
 }
+
