@@ -29,6 +29,11 @@ function fakeClient() {
         calls.push(call);
         return chain;
       },
+      delete() {
+        call.op = "delete";
+        calls.push(call);
+        return chain;
+      },
       update(payload: unknown) {
         call.op = "update";
         call.payload = payload;
@@ -176,8 +181,23 @@ describe("writeChanges", () => {
     s = recruitmentReducer(s, { type: "payroll/create", id: uuid(8), at, by: "Ada", period: "2026-10" });
     const calls = await apply(s, { type: "payroll/submit", id: uuid(9), at, by: "Ada", runId: uuid(8) });
     const ups = calls.filter((c) => c.table === "payroll_runs").map((c) => c.payload as Record<string, unknown>);
-    assert.ok("gross_total" in ups[0]);
+    assert.ok("gross_total" in ups[0] && "paye_total" in ups[0]);
     assert.deepEqual(ups[1], { status: "Pending approval" });
+    // Payslips are written between locking the totals and changing status.
+    const order = calls.filter((c) => c.table === "payroll_runs" || c.table === "payroll_lines").map((c) => `${c.table}:${c.op}`);
+    assert.deepEqual(order, ["payroll_runs:update", "payroll_lines:delete", "payroll_lines:insert", "payroll_runs:update"]);
+    const lines = calls.find((c) => c.table === "payroll_lines" && c.op === "insert")!.payload as Record<string, number>[];
+    assert.ok(lines.length > 10);
+    for (const l of lines) assert.ok(Math.abs(l.gross - l.pension - l.nhf - l.paye - l.net) < 0.01);
+  });
+
+  it("people: returning a run to draft unlocks it before clearing payslips", async () => {
+    let s = base();
+    s = recruitmentReducer(s, { type: "payroll/create", id: uuid(30), at, by: "Ada", period: "2026-10" });
+    s = recruitmentReducer(s, { type: "payroll/submit", id: uuid(31), at, by: "Ada", runId: uuid(30) });
+    const calls = await apply(s, { type: "payroll/reopen", id: uuid(32), at, by: "Ada", runId: uuid(30) });
+    const order = calls.filter((c) => c.table === "payroll_runs" || c.table === "payroll_lines").map((c) => `${c.table}:${c.op}`);
+    assert.deepEqual(order, ["payroll_runs:update", "payroll_lines:delete"]);
   });
 
   it("people: settings update the organisation row", async () => {

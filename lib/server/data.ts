@@ -7,7 +7,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DemoState } from "../demo-data";
-import type { Activity, AttendanceRecord, Candidate, Employee, Goal, Interview, Job, LeaveRequest, Note, OnboardingTask, PayrollRun, Review, SelfServiceRequest, StageChange } from "../types";
+import { normaliseConfig } from "../paye";
+import type { Activity, AttendanceRecord, Candidate, Employee, Goal, Interview, Job, LeaveRequest, Note, OnboardingTask, PayrollLine, PayrollRun, Review, SelfServiceRequest, StageChange } from "../types";
 
 type Row = Record<string, unknown>;
 
@@ -111,6 +112,38 @@ async function rows(q: PromiseLike<{ data: Row[] | null; error: { message: strin
   return data ?? [];
 }
 
+function runTotalColumns(r: PayrollRun) {
+  return {
+    paye_total: r.payeTotal,
+    pension_total: r.pensionTotal,
+    nhf_total: r.nhfTotal,
+    net_total: r.netTotal,
+    employer_pension_total: r.employerPensionTotal,
+  };
+}
+
+function lineRow(orgId: string, l: PayrollLine) {
+  return {
+    ...(isUuid(l.id) ? { id: l.id } : {}),
+    org_id: orgId,
+    run_id: l.runId,
+    employee_id: l.employeeId,
+    employee_name: l.employeeName,
+    gross: l.gross,
+    basic: l.basic,
+    housing: l.housing,
+    transport: l.transport,
+    other: l.other,
+    pension: l.pension,
+    nhf: l.nhf,
+    paye: l.paye,
+    net: l.net,
+    employer_pension: l.employerPension,
+    rent_relief: l.rentRelief,
+    taxable: l.taxable,
+  };
+}
+
 /** Loads everything the current user may see in their organisation. RLS filters by role. */
 export async function loadState(supabase: SupabaseClient, orgId: string): Promise<DemoState> {
   const [jobs, candidates, notes, interviews, history, employees, activity, inbox] = await Promise.all([
@@ -124,7 +157,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
   ]);
   const since = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
-  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows, attendanceRows, workStartRows, careersRows] = await Promise.all([
+  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows, attendanceRows, workStartRows, careersRows, payrollConfigRows, rentRows, lineRows] = await Promise.all([
     rows(supabase.from("organizations").select("name, leave_allowance_days").eq("id", orgId).limit(1)),
     optionalRows(supabase.from("employee_compensation").select("employee_id, monthly_gross").eq("org_id", orgId)), // HR admins only (RLS)
     optionalRows(supabase.from("leave_requests").select("*").eq("org_id", orgId).order("start_date", { ascending: false }).limit(500)),
@@ -136,6 +169,9 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     optionalRows(supabase.from("attendance").select("*").eq("org_id", orgId).gte("date", since).order("date", { ascending: false }).limit(5000)), // HR, managers, own (RLS)
     optionalRows(supabase.from("organizations").select("work_start").eq("id", orgId).limit(1)), // added by the attendance migration
     optionalRows(supabase.from("organizations").select("careers_enabled, careers_slug, careers_intro").eq("id", orgId).limit(1)), // careers migration
+    optionalRows(supabase.from("organizations").select("payroll_config").eq("id", orgId).limit(1)), // PAYE migration
+    optionalRows(supabase.from("employee_compensation").select("employee_id, annual_rent").eq("org_id", orgId)), // HR admins; staff see their own
+    optionalRows(supabase.from("payroll_lines").select("*").eq("org_id", orgId).order("created_at", { ascending: false }).limit(5000)), // HR; staff own approved
   ]);
 
   const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
@@ -198,6 +234,11 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
       status: s(r.status) as PayrollRun["status"],
       employeeCount: n(r.employee_count),
       grossTotal: Number(r.gross_total) || 0,
+      payeTotal: Number(r.paye_total) || 0,
+      pensionTotal: Number(r.pension_total) || 0,
+      nhfTotal: Number(r.nhf_total) || 0,
+      netTotal: Number(r.net_total) || 0,
+      employerPensionTotal: Number(r.employer_pension_total) || 0,
       preparedBy: s(r.prepared_by_name),
       approvedBy: s(r.approved_by_name),
       approvedAt: (r.approved_at as string | null) ?? null,
@@ -209,6 +250,26 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
       workStart: s(workStartRows[0]?.work_start, "09:00"),
     },
     holidays: holidayRows.map((r) => ({ id: s(r.id), date: s(r.date), name: s(r.name) })),
+    payrollConfig: normaliseConfig(payrollConfigRows[0]?.payroll_config),
+    rent: Object.fromEntries(rentRows.filter((r) => Number(r.annual_rent) > 0).map((r) => [s(r.employee_id), Number(r.annual_rent)])),
+    payrollLines: lineRows.map((r) => ({
+      id: s(r.id),
+      runId: s(r.run_id),
+      employeeId: s(r.employee_id),
+      employeeName: s(r.employee_name),
+      gross: Number(r.gross) || 0,
+      basic: Number(r.basic) || 0,
+      housing: Number(r.housing) || 0,
+      transport: Number(r.transport) || 0,
+      other: Number(r.other) || 0,
+      pension: Number(r.pension) || 0,
+      nhf: Number(r.nhf) || 0,
+      paye: Number(r.paye) || 0,
+      net: Number(r.net) || 0,
+      employerPension: Number(r.employer_pension) || 0,
+      rentRelief: Number(r.rent_relief) || 0,
+      taxable: Number(r.taxable) || 0,
+    })),
     careers: {
       enabled: Boolean(careersRows[0]?.careers_enabled),
       slug: s(careersRows[0]?.careers_slug),
@@ -497,14 +558,41 @@ export async function writeChanges(supabase: SupabaseClient, orgId: string, befo
           period: r.period,
           employee_count: r.employeeCount,
           gross_total: r.grossTotal,
+          ...runTotalColumns(r),
         }),
       );
     } else if (prev.status !== r.status || prev.grossTotal !== r.grossTotal || prev.employeeCount !== r.employeeCount) {
       if (r.status === "Pending approval" && prev.status === "Draft") {
-        // Lock in the latest totals while still in Draft, then submit.
-        await check(supabase.from("payroll_runs").update({ employee_count: r.employeeCount, gross_total: r.grossTotal }).eq("id", r.id));
+        // While still in Draft: lock in the latest totals and payslips, then submit.
+        await check(supabase.from("payroll_runs").update({ employee_count: r.employeeCount, gross_total: r.grossTotal, ...runTotalColumns(r) }).eq("id", r.id));
+        await check(supabase.from("payroll_lines").delete().eq("run_id", r.id));
+        const lines = after.payrollLines.filter((l) => l.runId === r.id);
+        if (lines.length) await check(supabase.from("payroll_lines").insert(lines.map((l) => lineRow(orgId, l))));
+        await check(supabase.from("payroll_runs").update({ status: r.status }).eq("id", r.id));
+      } else if (r.status === "Draft" && prev.status === "Pending approval") {
+        // Back to Draft first (unlocks the payslips), then clear them.
+        await check(supabase.from("payroll_runs").update({ status: r.status }).eq("id", r.id));
+        await check(supabase.from("payroll_lines").delete().eq("run_id", r.id));
+      } else {
+        await check(supabase.from("payroll_runs").update({ status: r.status }).eq("id", r.id));
       }
-      await check(supabase.from("payroll_runs").update({ status: r.status }).eq("id", r.id));
+    }
+  }
+
+  // Payroll rules and declared rent (HR admins only)
+  if (!same(before.payrollConfig, after.payrollConfig)) {
+    await check(supabase.from("organizations").update({ payroll_config: after.payrollConfig }).eq("id", orgId));
+  }
+  for (const [employeeId, amount] of Object.entries(after.rent)) {
+    if (before.rent[employeeId] === amount) continue;
+    if (typeof after.pay[employeeId] === "number") {
+      await check(supabase.from("employee_compensation").update({ annual_rent: amount, updated_at: new Date().toISOString() }).eq("employee_id", employeeId));
+    } else {
+      await check(
+        supabase
+          .from("employee_compensation")
+          .upsert({ org_id: orgId, employee_id: employeeId, monthly_gross: 0, annual_rent: amount, updated_at: new Date().toISOString() }, { onConflict: "employee_id" }),
+      );
     }
   }
 

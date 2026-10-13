@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { formatDate } from "@/lib/format";
 import { suggestSlug, validCareersSettings } from "@/lib/careers";
 import { nigeriaFixedHolidays } from "@/lib/holidays";
+import { bandLabel, DEFAULT_PAYROLL_CONFIG, validConfig, type PayrollConfig, type TaxBand } from "@/lib/paye";
 import { Panel } from "../ui/bits";
 import { useToast } from "../ui/Toast";
 import { usePeople } from "./usePeople";
@@ -153,7 +154,7 @@ export function SettingsIntegrations() {
     ["MyJobMag job posting & CV database", "Needs MyJobMag API approval"],
     ["WhatsApp Business", "Needs a WhatsApp Business Platform account"],
     ["Email sender (SMTP)", "Set up in Supabase → Authentication → Emails"],
-    ["Payroll deductions & payments", "Needs validated statutory rules and a licensed payment provider"],
+    ["Salary payments", "MagHR prepares the bank schedule; paying out needs a licensed payment provider"],
   ];
   return (
     <Panel title="Integrations" subtitle="What’s connected">
@@ -245,6 +246,150 @@ export function CareersPanel() {
               Save careers page
             </button>
           </div>
+        ) : null}
+      </form>
+    </Panel>
+  );
+}
+
+/** PAYE, pension and NHF rules. Defaults follow the Nigeria Tax Act 2025; a payroll professional confirms them. */
+export function PayrollRulesPanel() {
+  const { state, act, can, isAdmin } = usePeople();
+  const toast = useToast();
+  const editable = can("settings/payroll");
+  const [c, setC] = useState<PayrollConfig>(state.payrollConfig);
+  const [confirm, setConfirm] = useState(false);
+  if (!isAdmin) return null;
+  const valid = validConfig(c);
+  const num = (k: keyof PayrollConfig) => (e: ChangeEvent<HTMLInputElement>) => setC({ ...c, [k]: Number(e.target.value) });
+  const setBand = (i: number, patch: Partial<TaxBand>) => setC({ ...c, bands: c.bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) });
+  const other = 100 - c.basicPct - c.housingPct - c.transportPct;
+  const saved = state.payrollConfig;
+
+  return (
+    <Panel
+      title="Payroll rules"
+      subtitle={saved.confirmedBy ? `Confirmed by ${saved.confirmedBy}${saved.confirmedAt ? `, ${formatDate(saved.confirmedAt)}` : ""}` : "Not confirmed yet: payslips show as estimates"}
+    >
+      <form
+        className="panel-body payroll-rules"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valid) return toast("Check the tax bands climb in order and the pay split adds up to 100% or less.");
+          act({ type: "settings/payroll", config: c, confirm });
+          toast(confirm ? "Payroll rules saved and confirmed." : "Payroll rules saved. They’ll show as estimates until confirmed.");
+          setConfirm(false);
+        }}
+      >
+        <fieldset disabled={!editable}>
+          <legend>How monthly gross is split</legend>
+          <div className="rules-grid">
+            <div className="field">
+              <label htmlFor="pr-basic">Basic %</label>
+              <input id="pr-basic" inputMode="decimal" value={c.basicPct} onChange={num("basicPct")} />
+            </div>
+            <div className="field">
+              <label htmlFor="pr-housing">Housing %</label>
+              <input id="pr-housing" inputMode="decimal" value={c.housingPct} onChange={num("housingPct")} />
+            </div>
+            <div className="field">
+              <label htmlFor="pr-transport">Transport %</label>
+              <input id="pr-transport" inputMode="decimal" value={c.transportPct} onChange={num("transportPct")} />
+            </div>
+            <div className="field">
+              <span className="label">Other allowances</span>
+              <strong className={other < 0 ? "rules-bad" : "rules-other"}>{other}%</strong>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset disabled={!editable}>
+          <legend>Pension, NHF and minimum wage</legend>
+          <div className="rules-grid">
+            <div className="field">
+              <label htmlFor="pr-pee">Employee pension %</label>
+              <input id="pr-pee" inputMode="decimal" value={c.pensionEmployeeRate} onChange={num("pensionEmployeeRate")} />
+            </div>
+            <div className="field">
+              <label htmlFor="pr-per">Employer pension %</label>
+              <input id="pr-per" inputMode="decimal" value={c.pensionEmployerRate} onChange={num("pensionEmployerRate")} />
+            </div>
+            <div className="field">
+              <label htmlFor="pr-nhf">NHF % of basic</label>
+              <input id="pr-nhf" inputMode="decimal" value={c.nhfRate} disabled={!c.nhfEnabled || !editable} onChange={num("nhfRate")} />
+              <label className="inline-check">
+                <input type="checkbox" checked={c.nhfEnabled} onChange={(e) => setC({ ...c, nhfEnabled: e.target.checked })} /> Deduct NHF
+              </label>
+            </div>
+            <div className="field">
+              <label htmlFor="pr-minw">Minimum wage (₦/month)</label>
+              <input id="pr-minw" inputMode="numeric" value={c.minimumWageMonthly} onChange={num("minimumWageMonthly")} />
+            </div>
+          </div>
+          <p className="hint" style={{ margin: "6px 0 0" }}>
+            Pension is worked out on basic + housing + transport (Pension Reform Act 2014). People earning the minimum wage or less pay no PAYE.
+          </p>
+        </fieldset>
+
+        <fieldset disabled={!editable}>
+          <legend>PAYE (annual taxable income)</legend>
+          <div className="rules-grid">
+            <div className="field">
+              <label htmlFor="pr-rr">Rent relief % of rent paid</label>
+              <input id="pr-rr" inputMode="decimal" value={c.rentReliefRate} onChange={num("rentReliefRate")} />
+            </div>
+            <div className="field">
+              <label htmlFor="pr-rrcap">Rent relief cap (₦/year)</label>
+              <input id="pr-rrcap" inputMode="numeric" value={c.rentReliefCap} onChange={num("rentReliefCap")} />
+            </div>
+          </div>
+          <table className="bands-table">
+            <caption className="sr-only">Tax bands</caption>
+            <thead>
+              <tr>
+                <th scope="col">Band</th>
+                <th scope="col">Up to (₦/year)</th>
+                <th scope="col">Rate %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {c.bands.map((b, i) => (
+                <tr key={i}>
+                  <td>{bandLabel(c.bands, i)}</td>
+                  <td>
+                    {b.upTo === null ? (
+                      <span className="stat-foot">and above</span>
+                    ) : (
+                      <input aria-label={`Band ${i + 1} upper limit`} className="control" inputMode="numeric" value={b.upTo} onChange={(e) => setBand(i, { upTo: Number(e.target.value) })} />
+                    )}
+                  </td>
+                  <td>
+                    <input aria-label={`Band ${i + 1} rate`} className="control" inputMode="decimal" value={b.rate} onChange={(e) => setBand(i, { rate: Number(e.target.value) })} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button type="button" className="link-btn" onClick={() => setC({ ...DEFAULT_PAYROLL_CONFIG, confirmedBy: c.confirmedBy, confirmedAt: c.confirmedAt })}>
+            Reset to Nigeria Tax Act 2025 defaults
+          </button>
+        </fieldset>
+
+        {editable ? (
+          <>
+            <label className="switch-row" htmlFor="pr-confirm">
+              <input id="pr-confirm" type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
+              <span>
+                <strong>These rules have been checked by a qualified payroll professional</strong>
+                <span className="hint">Your name is recorded. Changing any rule later clears the confirmation until someone checks again.</span>
+              </span>
+            </label>
+            <div>
+              <button className="btn primary" disabled={!valid}>
+                {confirm ? "Save and confirm" : "Save payroll rules"}
+              </button>
+            </div>
+          </>
         ) : null}
       </form>
     </Panel>

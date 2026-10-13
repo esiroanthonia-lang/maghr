@@ -5,7 +5,8 @@
 import type { CompanyHoliday } from "./holidays";
 import { lagosDate, lagosTime, lagosToIso, lastDays } from "./attendance";
 import type { CareersSettings } from "./careers";
-import { onboardingTemplate } from "./people";
+import { DEFAULT_PAYROLL_CONFIG, type PayrollConfig } from "./paye";
+import { computeRunLines, onboardingTemplate, runTotals } from "./people";
 import type {
   Activity,
   AttendanceRecord,
@@ -16,6 +17,7 @@ import type {
   Goal,
   LeaveRequest,
   OnboardingTask,
+  PayrollLine,
   PayrollRun,
   Review,
   Employee,
@@ -46,6 +48,12 @@ export interface DemoState {
   holidays: CompanyHoliday[];
   onboarding: OnboardingTask[];
   attendance: AttendanceRecord[];
+  /** Payroll rules (PAYE bands, pension, NHF, pay split). HR admins only in live mode. */
+  payrollConfig: PayrollConfig;
+  /** Annual rent each person has declared, for PAYE rent relief. HR admins (and the person) only. */
+  rent: Record<string, number>;
+  /** Payslips inside submitted and approved payroll runs. */
+  payrollLines: PayrollLine[];
   /** Public careers page settings. Off by default in real workspaces. */
   careers: CareersSettings;
 }
@@ -398,17 +406,30 @@ export function createDemoData(now: Date = new Date()): DemoState {
     const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - back, 1));
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
   };
-  const payrollRuns: PayrollRun[] = [1, 2].map((back) => ({
-    id: `pay-${back}`,
-    period: month(back),
-    status: "Approved",
-    employeeCount: Object.keys(pay).length - (back === 2 ? 1 : 0),
-    grossTotal: Object.values(pay).reduce((a, b) => a + b, 0) - (back === 2 ? 380000 : 0),
-    preparedBy: "Grace Nwosu",
-    approvedBy: "Kunle Akande",
-    approvedAt: ago((back * 30 - 2) * DAY),
-    createdAt: ago((back * 30) * DAY),
-  }));
+  // Synthetic declared annual rent for a few people, so rent relief shows up on payslips.
+  const rent: Record<string, number> = {};
+  employees.forEach((e, i) => {
+    if (i % 3 === 0) rent[e.id] = 1_200_000 + i * 150_000;
+  });
+  const payrollConfig: PayrollConfig = { ...DEFAULT_PAYROLL_CONFIG };
+  const payrollLines: PayrollLine[] = [];
+  const payrollRuns: PayrollRun[] = [1, 2].map((back) => {
+    const id = `pay-${back}`;
+    const lines = computeRunLines({ employees, pay, rent, payrollConfig } as unknown as DemoState, id);
+    payrollLines.push(...lines);
+    return {
+      id,
+      period: month(back),
+      status: "Approved",
+      employeeCount: lines.length,
+      grossTotal: lines.reduce((a, l) => a + l.gross, 0),
+      ...runTotals(lines),
+      preparedBy: "Grace Nwosu",
+      approvedBy: "Kunle Akande",
+      approvedAt: ago((back * 30 - 2) * DAY),
+      createdAt: ago((back * 30) * DAY),
+    };
+  });
 
   const settings: CompanySettings = { companyName: "MyJobMag (demo)", leaveAllowanceDays: 20, workStart: "09:00" };
 
@@ -472,6 +493,9 @@ export function createDemoData(now: Date = new Date()): DemoState {
     goals,
     reviews,
     payrollRuns,
+    payrollConfig,
+    rent,
+    payrollLines,
     settings,
     holidays: [{ id: "hol-001", date: `${today.getUTCFullYear()}-12-31`, name: "Company end-of-year day" }],
     onboarding: seedOnboarding(employees, ago),

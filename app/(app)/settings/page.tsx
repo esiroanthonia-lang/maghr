@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CareersPanel, CompanySettingsPanel, HolidaysPanel, SettingsIntegrations } from "@/components/people/CompanySettings";
+import { CareersPanel, CompanySettingsPanel, HolidaysPanel, PayrollRulesPanel, SettingsIntegrations } from "@/components/people/CompanySettings";
 import { TeamManager, type Member, type PendingInvite } from "@/components/settings/TeamManager";
 import { PageHeader, Panel } from "@/components/ui/bits";
 import { demoMode, requireWorkspace } from "@/lib/server/session";
@@ -16,6 +16,7 @@ export default async function SettingsPage() {
         <PageHeader eyebrow="YOUR WORKSPACE, YOUR RULES" title="Settings" intro="Company details, leave policy, team and integrations." />
         <CompanySettingsPanel />
         <HolidaysPanel />
+        <PayrollRulesPanel />
         <CareersPanel />
         <Panel title="Team & roles" subtitle="Available when connected to a database">
           <p className="panel-body" style={{ margin: 0, fontSize: 13 }}>
@@ -47,6 +48,7 @@ export default async function SettingsPage() {
       <PageHeader eyebrow="YOUR WORKSPACE, YOUR RULES" title="Settings" intro={`Company details, team and access for ${info.orgName}.`} />
       <CompanySettingsPanel />
       <HolidaysPanel />
+      <PayrollRulesPanel />
       <CareersPanel />
       <TeamManager members={members} invites={invites} meId={info.me.userId} isAdmin={isAdmin} />
       <SettingsIntegrations />

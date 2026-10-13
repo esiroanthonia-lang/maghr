@@ -262,10 +262,36 @@ export interface PayrollRun {
   status: PayrollStatus;
   employeeCount: number;
   grossTotal: number;
+  /** Deduction totals, locked with the run when it's submitted. */
+  payeTotal: number;
+  pensionTotal: number;
+  nhfTotal: number;
+  netTotal: number;
+  employerPensionTotal: number;
   preparedBy: string;
   approvedBy: string;
   approvedAt: string | null;
   createdAt: string;
+}
+
+/** One person's payslip within a payroll run (monthly naira; rent relief and taxable are annual). */
+export interface PayrollLine {
+  id: string;
+  runId: string;
+  employeeId: string;
+  employeeName: string;
+  gross: number;
+  basic: number;
+  housing: number;
+  transport: number;
+  other: number;
+  pension: number;
+  nhf: number;
+  paye: number;
+  net: number;
+  employerPension: number;
+  rentRelief: number;
+  taxable: number;
 }
 
 export interface CompanySettings {

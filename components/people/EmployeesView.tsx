@@ -21,6 +21,7 @@ function EmployeeDrawer({ employee, onClose, onEdit }: { employee: Employee; onC
   const ref = useDialogBehaviour(onClose);
   const titleId = useId();
   const [payDraft, setPayDraft] = useState("");
+  const [rentDraft, setRentDraft] = useState("");
   const [exitDate, setExitDate] = useState<string | null>(null);
   const pay = state.pay[employee.id];
   const balance = year ? leaveBalance(state, employee.id, year) : null;
@@ -132,6 +133,34 @@ function EmployeeDrawer({ employee, onClose, onEdit }: { employee: Employee; onC
                 <input id={`${titleId}-pay`} className="control" inputMode="numeric" placeholder="New monthly gross, e.g. 500000" value={payDraft} onChange={(e) => setPayDraft(e.target.value)} />
                 <button className="btn" disabled={!payDraft.trim()}>
                   Update
+                </button>
+              </form>
+            ) : null}
+            <p style={{ margin: "14px 0 8px", fontSize: 13 }}>
+              Annual rent declared: <strong>{state.rent[employee.id] ? formatNaira(state.rent[employee.id]) : "None"}</strong>
+              <span className="stat-foot"> · used for PAYE rent relief</span>
+            </p>
+            {can("employee/setRent") && employee.status !== "Exited" ? (
+              <form
+                className="inline-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const amount = Number(rentDraft.replace(/[,\s₦]/g, ""));
+                  if (!(amount >= 0 && amount < 1e10)) {
+                    toast("Enter the yearly rent in naira, e.g. 1500000. Use 0 for none.");
+                    return;
+                  }
+                  act({ type: "employee/setRent", employeeId: employee.id, annualRent: amount });
+                  toast(`Rent updated for ${employee.name}. Keep the receipt or tenancy agreement on file.`);
+                  setRentDraft("");
+                }}
+              >
+                <label htmlFor={`${titleId}-rent`} className="sr-only">
+                  Annual rent paid
+                </label>
+                <input id={`${titleId}-rent`} className="control" inputMode="numeric" placeholder="Annual rent paid, e.g. 1500000" value={rentDraft} onChange={(e) => setRentDraft(e.target.value)} />
+                <button className="btn" disabled={!rentDraft.trim()}>
+                  Save rent
                 </button>
               </form>
             ) : null}

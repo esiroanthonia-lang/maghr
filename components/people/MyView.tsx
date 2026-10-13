@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
-import { formatNaira, holidaysForState, leaveBalance, workingDays } from "@/lib/people";
+import { formatNaira, holidaysForState, leaveBalance, periodLabel, workingDays } from "@/lib/people";
 import { LEAVE_TYPES, type LeaveType } from "@/lib/types";
 import { myEmployeeEmail } from "@/lib/workspace";
 import { Avatar, Badge, EmptyState, Notice, Panel } from "../ui/bits";
@@ -10,6 +10,8 @@ import { Field } from "../ui/Field";
 import { Icon } from "../ui/Icon";
 import { useToast } from "../ui/Toast";
 import { ClockCard } from "./Attendance";
+import { PayslipCard, printPayslip } from "./Payslip";
+import { Modal } from "../ui/Modal";
 import { OnboardingChecklist } from "./Onboarding";
 import { usePeople } from "./usePeople";
 
@@ -26,6 +28,7 @@ export function MyView() {
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
+  const [slipId, setSlipId] = useState<string | null>(null);
   const firstName = workspace.mode === "live" ? workspace.me.name.split(" ")[0] : me?.name.split(" ")[0];
 
   if (!me) {
@@ -51,6 +54,11 @@ export function MyView() {
   const upcoming = todayIso ? myLeave.find((l) => l.status === "Approved" && l.endDate >= todayIso) : undefined;
   const review = [...state.reviews].filter((r) => r.employeeId === me.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const pay = state.pay[me.id];
+  const approvedRuns = new Map(state.payrollRuns.filter((r) => r.status === "Approved").map((r) => [r.id, r]));
+  const slips = state.payrollLines
+    .filter((l) => l.employeeId === me.id && approvedRuns.has(l.runId))
+    .sort((a, b) => approvedRuns.get(b.runId)!.period.localeCompare(approvedRuns.get(a.runId)!.period));
+  const openSlip = slips.find((l) => l.id === slipId);
   const hols = start && end ? holidaysForState(state, start, end) : new Map<string, string>();
   const days = start && end ? workingDays(start, end, hols) : 0;
   const tenureYears = now ? Math.max(0, Math.floor((now.getTime() - Date.parse(`${me.startDate}T00:00:00Z`)) / (365.25 * 86400000))) : null;
@@ -218,6 +226,26 @@ export function MyView() {
             </div>
           </Panel>
 
+          <Panel title="My payslips" subtitle={slips.length ? "From approved payroll runs" : undefined}>
+            {slips.length === 0 ? (
+              <EmptyState title="No payslips yet">They appear here once HR approves each month’s payroll.</EmptyState>
+            ) : (
+              <ul className="list">
+                {slips.slice(0, 6).map((l) => (
+                  <li key={l.id} className="list-row" data-slip={approvedRuns.get(l.runId)!.period}>
+                    <div className="person-info">
+                      <strong>{periodLabel(approvedRuns.get(l.runId)!.period)}</strong>
+                      <span>Net {formatNaira(Math.round(l.net))}</span>
+                    </div>
+                    <button type="button" className="btn small" onClick={() => setSlipId(l.id)} aria-label={`View payslip for ${periodLabel(approvedRuns.get(l.runId)!.period)}`}>
+                      View
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
           {upcoming ? (
             <Notice>
               Your next time off: <strong>{upcoming.leaveType}</strong>, {d(upcoming.startDate)} to {d(upcoming.endDate)}.
@@ -264,6 +292,28 @@ export function MyView() {
           </Panel>
         </div>
       </div>
+
+      {openSlip ? (
+        <Modal title={`Payslip · ${periodLabel(approvedRuns.get(openSlip.runId)!.period)}`} onClose={() => setSlipId(null)}>
+          <PayslipCard
+            company={state.settings.companyName}
+            period={periodLabel(approvedRuns.get(openSlip.runId)!.period)}
+            name={me.name}
+            detail={`${me.jobTitle} · ${me.department}`}
+            slip={openSlip}
+            estimate={false}
+            status="Approved"
+          />
+          <div className="modal-actions">
+            <button type="button" className="btn" onClick={() => setSlipId(null)}>
+              Close
+            </button>
+            <button type="button" className="btn dark" onClick={printPayslip}>
+              Print or save as PDF
+            </button>
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 }

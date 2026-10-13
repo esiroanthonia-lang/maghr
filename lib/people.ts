@@ -6,6 +6,7 @@ import type { DemoState } from "./demo-data";
 import { isTime, lagosDate, lagosToIso } from "./attendance";
 import { validCareersSettings, type CareersSettings } from "./careers";
 import { holidaysBetween } from "./holidays";
+import { computePayslip, validConfig, type PayrollConfig } from "./paye";
 import type {
   CompanySettings,
   Department,
@@ -16,6 +17,7 @@ import type {
   LeaveType,
   OnboardingOwner,
   OnboardingTask,
+  PayrollLine,
   PayrollRun,
   ReviewStatus,
   WorkMode,
@@ -62,6 +64,8 @@ export type PeopleAction =
   | ({ type: "employee/update"; employeeId: string; input: EmployeeInput } & Meta)
   | ({ type: "employee/setPay"; employeeId: string; monthlyGross: number } & Meta)
   | ({ type: "employee/exit"; employeeId: string; date: string } & Meta)
+  | ({ type: "employee/setRent"; employeeId: string; annualRent: number } & Meta)
+  | ({ type: "settings/payroll"; config: PayrollConfig; confirm: boolean } & Meta)
   | ({ type: "leave/request"; input: LeaveInput } & Meta)
   | ({ type: "leave/decide"; leaveId: string; status: "Approved" | "Declined" } & Meta)
   | ({ type: "leave/cancel"; leaveId: string } & Meta)
@@ -111,7 +115,7 @@ const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00
 /** Ids for tasks created together: keeps UUIDs valid so the database can store the same id. */
 export function derivedId(base: string, i: number): string {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(base)
-    ? base.slice(0, -2) + i.toString(16).padStart(2, "0")
+    ? base.slice(0, -4) + i.toString(16).padStart(4, "0")
     : `${base}-${i}`;
 }
 
@@ -229,6 +233,10 @@ export function peopleReducer(state: State, action: PeopleAction): State {
       if (!state.employees.some((e) => e.id === action.employeeId) || !(action.monthlyGross >= 0)) return state;
       return { ...state, pay: { ...state.pay, [action.employeeId]: Math.round(action.monthlyGross) } };
     }
+    case "employee/setRent": {
+      if (!state.employees.some((e) => e.id === action.employeeId) || !(action.annualRent >= 0 && action.annualRent < 1e10)) return state;
+      return { ...state, rent: { ...state.rent, [action.employeeId]: Math.round(action.annualRent) } };
+    }
     case "employee/exit": {
       const e = state.employees.find((x) => x.id === action.employeeId);
       if (!e || e.status === "Exited") return state;
@@ -326,6 +334,7 @@ export function peopleReducer(state: State, action: PeopleAction): State {
         status: "Draft",
         employeeCount: count,
         grossTotal: total,
+        ...runTotals(computeRunLines(state, action.id)),
         preparedBy: by,
         approvedBy: "",
         approvedAt: null,
@@ -340,11 +349,15 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     case "payroll/submit": {
       const run = state.payrollRuns.find((r) => r.id === action.runId);
       if (!run || run.status !== "Draft") return state;
-      // Totals are refreshed from current pay at the moment of submission, then locked.
+      // Payslips and totals are worked out from current pay at the moment of submission, then locked.
       const { count, total } = payrollTotals(state);
+      const lines = computeRunLines(state, run.id, action.id);
       return {
         ...state,
-        payrollRuns: state.payrollRuns.map((r) => (r.id === run.id ? { ...r, status: "Pending approval", employeeCount: count, grossTotal: total } : r)),
+        payrollLines: [...state.payrollLines.filter((l) => l.runId !== run.id), ...lines],
+        payrollRuns: state.payrollRuns.map((r) =>
+          r.id === run.id ? { ...r, status: "Pending approval", employeeCount: count, grossTotal: total, ...runTotals(lines) } : r,
+        ),
         activity: log(state, action.id, action.at, "payroll", "Payroll submitted for approval", periodLabel(run.period)),
       };
     }
@@ -361,7 +374,11 @@ export function peopleReducer(state: State, action: PeopleAction): State {
     case "payroll/reopen": {
       const run = state.payrollRuns.find((r) => r.id === action.runId);
       if (!run || run.status !== "Pending approval") return state;
-      return { ...state, payrollRuns: state.payrollRuns.map((r) => (r.id === run.id ? { ...r, status: "Draft" } : r)) };
+      return {
+        ...state,
+        payrollRuns: state.payrollRuns.map((r) => (r.id === run.id ? { ...r, status: "Draft" } : r)),
+        payrollLines: state.payrollLines.filter((l) => l.runId !== run.id),
+      };
     }
 
     case "settings/update": {
@@ -383,6 +400,19 @@ export function peopleReducer(state: State, action: PeopleAction): State {
         ...state,
         holidays: [...state.holidays, { id: action.id, date: action.date, name }].sort((a, b) => a.date.localeCompare(b.date)),
         activity: log(state, action.id, action.at, "settings", "Holiday added", `${name} · ${action.date}`),
+      };
+    }
+    case "settings/payroll": {
+      if (!validConfig(action.config)) return state;
+      const rates = (c: PayrollConfig) => JSON.stringify({ ...c, confirmedBy: "", confirmedAt: null });
+      const changed = rates(action.config) !== rates(state.payrollConfig);
+      // Any change to the rules needs confirming again; confirming records who and when.
+      const confirmedBy = action.confirm ? by : changed ? "" : state.payrollConfig.confirmedBy;
+      const confirmedAt = action.confirm ? action.at : changed ? null : state.payrollConfig.confirmedAt;
+      return {
+        ...state,
+        payrollConfig: { ...action.config, confirmedBy, confirmedAt },
+        activity: log(state, action.id, action.at, "payroll", action.confirm ? "Payroll rules confirmed" : "Payroll rules updated", action.confirm ? `by ${by}` : ""),
       };
     }
     case "settings/careers": {
@@ -485,6 +515,38 @@ export function payrollTotals(state: State): { count: number; total: number } {
     }
   }
   return { count, total };
+}
+
+/** Payslips for everyone with pay set, from current pay and the company's payroll rules. */
+export function computeRunLines(state: State, runId: string, idBase = runId): PayrollLine[] {
+  return activeEmployees(state)
+    .filter((e) => typeof state.pay[e.id] === "number" && state.pay[e.id] > 0)
+    .map((e, i) => {
+      const p = computePayslip(state.pay[e.id], state.rent[e.id] ?? 0, state.payrollConfig);
+      return {
+        id: derivedId(idBase, i),
+        runId,
+        employeeId: e.id,
+        employeeName: e.name,
+        gross: p.monthlyGross,
+        basic: p.basic,
+        housing: p.housing,
+        transport: p.transport,
+        other: p.other,
+        pension: p.pension,
+        nhf: p.nhf,
+        paye: p.paye,
+        net: p.net,
+        employerPension: p.employerPension,
+        rentRelief: p.annualRentRelief,
+        taxable: p.annualTaxable,
+      };
+    });
+}
+
+export function runTotals(lines: PayrollLine[]) {
+  const sum = (k: keyof PayrollLine) => Math.round(lines.reduce((n, l) => n + (l[k] as number), 0) * 100) / 100;
+  return { payeTotal: sum("paye"), pensionTotal: sum("pension"), nhfTotal: sum("nhf"), netTotal: sum("net"), employerPensionTotal: sum("employerPension") };
 }
 
 /** Annual leave taken (approved) in a calendar year, and what's left of the allowance. */
