@@ -70,7 +70,7 @@ Without these variables the site still deploys, as the demo. With them, every pa
 | HR admin | Everything, including team, roles and audit log |
 | Recruiter | Jobs, candidates, interviews, offers, convert hires |
 | Manager | View hiring pipelines, add notes |
-| Employee | Their own record (self-service is the next build) |
+| Employee | Their own **My space**: details, leave balance, request and cancel leave, their review, company goals |
 
 ## 5. Run it on a computer (developers)
 

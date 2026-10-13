@@ -31,7 +31,7 @@ values (:'acme', 'Ngozi Admin Test', 'ngozi@example.com', 'Finance', 'Accountant
 insert into public.employee_compensation (org_id, employee_id, monthly_gross) values (:'acme', :'ngozi', 450000);
 insert into public.employee_compensation (org_id, employee_id, monthly_gross) values (:'acme', :'efe_emp', 300000);
 
-\echo 'TEST pay is visible to HR admins only'
+\echo 'TEST pay is visible to HR admins only (employees: their own at most)'
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b'); -- now a manager (demoted in rls_test)
 do $$ declare n int; begin
   select count(*) into n from public.employee_compensation;
@@ -39,8 +39,10 @@ do $$ declare n int; begin
 end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
 do $$ declare n int; begin
-  select count(*) into n from public.employee_compensation;
-  if n <> 0 then raise exception 'FAIL: employee sees pay table'; end if;
+  -- After self-service (migration 3) an employee sees exactly their own pay row; before it, none.
+  select count(*) into n from public.employee_compensation e
+   where e.employee_id not in (select id from public.employees where user_id = auth.uid());
+  if n <> 0 then raise exception 'FAIL: employee sees someone else''s pay'; end if;
 end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
 do $$ declare n int; begin

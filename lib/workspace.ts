@@ -29,6 +29,9 @@ export function canEditRecruitment(w: WorkspaceInfo): boolean {
 /** Which roles may perform each kind of change. The database enforces the same rules. */
 const ACTION_ROLES: [prefix: string, roles: Role[]][] = [
   ["inbox/", ["hr_admin"]],
+  // Anyone can request or cancel their own leave; the server and database check it's their own.
+  ["leave/request", ["hr_admin", "manager", "recruiter", "employee"]],
+  ["leave/cancel", ["hr_admin", "manager", "recruiter", "employee"]],
   ["employee/", ["hr_admin"]],
   ["leave/", ["hr_admin", "manager"]],
   ["goal/", ["hr_admin", "manager"]],
@@ -44,4 +47,9 @@ export function rolesFor(actionType: string): Role[] {
 
 export function canPerform(w: WorkspaceInfo, actionType: string): boolean {
   return w.mode === "demo" || rolesFor(actionType).includes(w.me.role);
+}
+
+/** The employee record that belongs to the signed-in person (matched by work email). */
+export function myEmployeeEmail(w: WorkspaceInfo): string | null {
+  return w.mode === "live" ? w.me.email.toLowerCase() : "grace.nwosu@example.com"; // demo persona
 }

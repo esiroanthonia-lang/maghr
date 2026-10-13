@@ -16,7 +16,7 @@ import {
   type EmployeeInput,
   type PeopleAction,
 } from "../lib/people";
-import { canPerform, rolesFor } from "../lib/workspace";
+import { canPerform, myEmployeeEmail, rolesFor } from "../lib/workspace";
 
 const NOW = new Date("2026-10-12T13:00:00Z");
 const at = "2026-10-12T14:00:00.000Z";
@@ -192,5 +192,15 @@ describe("settings, reports and permissions", () => {
     assert.ok(canPerform(manager, "leave/decide"));
     assert.ok(!canPerform(manager, "employee/setPay"));
     assert.ok(canPerform({ mode: "demo" }, "payroll/approve"));
+  });
+
+  it("lets every role request or cancel their own leave, but only HR/managers decide", () => {
+    const employee = { mode: "live" as const, orgId: "o", orgName: "O", me: { userId: "u", name: "E", email: "E@X.co", role: "employee" as const } };
+    assert.ok(canPerform(employee, "leave/request"));
+    assert.ok(canPerform(employee, "leave/cancel"));
+    assert.ok(!canPerform(employee, "leave/decide"));
+    assert.ok(!canPerform(employee, "candidate/moveStage"));
+    assert.equal(myEmployeeEmail(employee), "e@x.co");
+    assert.equal(myEmployeeEmail({ mode: "demo" }), "grace.nwosu@example.com");
   });
 });

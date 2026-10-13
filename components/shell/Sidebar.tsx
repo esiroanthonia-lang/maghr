@@ -34,7 +34,14 @@ export function Sidebar() {
   const { state, resetDemo, workspace } = useDemoStore();
   const live = workspace.mode === "live";
   // WhatsApp desk is a simulator until a WhatsApp Business account is connected.
-  const workspaceNav = live ? WORKSPACE_NAV.filter((n) => n.href !== "/whatsapp") : WORKSPACE_NAV;
+  const isEmployee = live && workspace.me.role === "employee";
+  // Staff with the employee role only need their own space; everything else is for HR, managers and recruiters.
+  const workspaceNav = isEmployee
+    ? WORKSPACE_NAV.filter((n) => n.href === "/me")
+    : live
+      ? WORKSPACE_NAV.filter((n) => n.href !== "/whatsapp")
+      : WORKSPACE_NAV;
+  const manageNav = isEmployee ? MANAGE_NAV.filter((n) => n.href === "/settings") : MANAGE_NAV;
   const toast = useToast();
   const newApplications = state.candidates.filter((c) => c.stage === "Applied" && c.jobId).length;
 
@@ -51,7 +58,7 @@ export function Sidebar() {
       </nav>
       <div className="nav-label">Manage</div>
       <nav className="nav" aria-label="Manage">
-        {MANAGE_NAV.map((item) => (
+        {manageNav.map((item) => (
           <NavLink key={item.href} item={live && item.href === "/settings" ? { ...item, ready: true } : item} pathname={pathname} />
         ))}
       </nav>

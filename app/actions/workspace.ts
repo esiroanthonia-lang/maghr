@@ -74,6 +74,13 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
 
   try {
     const before = await loadState(supabase, info.orgId);
+    // People who aren't HR admins or managers may only request/cancel their OWN leave.
+    if ((action.type === "leave/request" || action.type === "leave/cancel") && !["hr_admin", "manager"].includes(info.me.role)) {
+      const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());
+      const targetId =
+        action.type === "leave/request" ? action.input.employeeId : before.leave.find((l) => l.id === action.leaveId)?.employeeId;
+      if (!mine || targetId !== mine.id) return { ok: false, error: "You can only manage your own leave." };
+    }
     const after = appReducer(before, action);
     if (after !== before) await writeChanges(supabase, info.orgId, before, after);
     return { ok: true, state: await loadState(supabase, info.orgId) };

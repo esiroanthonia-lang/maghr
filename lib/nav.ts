@@ -10,6 +10,7 @@ export interface NavItem {
 
 export const WORKSPACE_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: "overview", ready: true },
+  { href: "/me", label: "My space", icon: "user", ready: true },
   { href: "/employees", label: "Employees", icon: "people", ready: true },
   { href: "/recruitment", label: "Recruitment", icon: "search", ready: true },
   { href: "/whatsapp", label: "WhatsApp desk", icon: "chat", ready: true },

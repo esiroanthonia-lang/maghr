@@ -740,3 +740,13 @@ h1, h2, h3, .stat-num, .brand, .wordmark, .funnel .stage-num, .mini-stats strong
   .stats { grid-template-columns: 1fr; }
   .stat + .stat { border-left: 0; border-top: 1px solid var(--line); }
 }
+
+/* ---------- My space ---------- */
+.today-compact { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.today-compact h1 { margin-bottom: 4px; }
+.me-head { display: flex; gap: 16px; align-items: center; }
+.me-head .person.lg { width: 60px; height: 60px; border-radius: 18px; font-size: 18px; }
+.me-sub { margin: 0; color: #c3d1da; font-size: 14px; }
+.today-compact .today-facts { justify-content: end; }
+.me-days { font-family: var(--font-head); font-size: 24px; padding: 4px 0; }
+@media (max-width: 1180px) { .today-compact { grid-template-columns: 1fr; } .today-compact .today-facts { justify-content: start; } }

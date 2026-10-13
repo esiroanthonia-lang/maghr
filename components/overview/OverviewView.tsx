@@ -9,6 +9,7 @@ import type { ActivityKind } from "@/lib/types";
 import { useUi } from "../shell/UiContext";
 import { Avatar, EmptyState, Panel, RelativeTime, StageBadge } from "../ui/bits";
 import { BarList, TrendChart } from "../ui/Charts";
+import { MyView } from "../people/MyView";
 import { Icon } from "../ui/Icon";
 
 const DOT: Record<ActivityKind, string> = {
@@ -60,6 +61,9 @@ export function OverviewView() {
         };
       })
     : null;
+
+  // Staff with the employee role land on their own space instead of the HR dashboard.
+  if (workspace.mode === "live" && workspace.me.role === "employee") return <MyView />;
 
   return (
     <>
