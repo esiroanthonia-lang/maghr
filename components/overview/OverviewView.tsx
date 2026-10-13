@@ -60,7 +60,6 @@ export function OverviewView() {
         };
       })
     : null;
-  const toReview = state.candidates.filter((c) => c.stage === "Applied" && c.jobId).length;
 
   return (
     <>
