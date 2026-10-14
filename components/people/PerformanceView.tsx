@@ -94,7 +94,9 @@ export function PerformanceView() {
   const cycleReviews = cycle ? state.reviews.filter((r) => r.cycle === cycle) : [];
   const scopedReviews = state.reviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
   const scopedCycleReviews = cycleReviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
-  const myEmployee = workspace.mode === "live" ? state.employees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase()) ?? null : null;
+  const myEmployee = workspace.mode === "live"
+    ? state.employees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase()) ?? null
+    : state.employees.find((employee) => employee.status === "Active" && employee.department === "People Operations") ?? null;
   const myGoals = myEmployee ? state.goals.filter((goal) => goal.ownerName.trim().toLowerCase() === myEmployee.name.trim().toLowerCase()) : [];
   const myLatestReview = myEmployee
     ? [...state.reviews].filter((review) => review.employeeId === myEmployee.id).sort((a, b) => b.cycle.localeCompare(a.cycle))[0]
@@ -148,28 +150,34 @@ export function PerformanceView() {
           </div>
         </div>
         {myEmployee ? <>
-          <Panel title="Your performance summary">
-            <div className="performance-roster" style={{ marginTop: 0 }}>
+          <div className="performance-personal-dashboard">
+            <Panel title="Employee profile" subtitle="Your role and department">
               <div className="performance-personal-profile">
                 <Avatar name={myEmployee.name} />
-                <div><strong>{myEmployee.name}</strong><small>{myEmployee.jobTitle} · {myEmployee.department}</small><small>{myEmployee.managerName ? `Manager: ${myEmployee.managerName}` : "Your employee profile"}</small></div>
+                <div><strong>{myEmployee.name}</strong><small>{myEmployee.jobTitle}</small><small>{myEmployee.department}</small><small>{myEmployee.managerName ? `Manager: ${myEmployee.managerName}` : "Manager not assigned"}</small></div>
               </div>
-            </div>
-            <div className="stats" style={{ marginTop: 18 }}>
-              <StatCard label="Latest rating" icon="trend" tone="blue" value={myLatestReview?.rating ? `${myLatestReview.rating} / 5` : "—"} foot={myLatestReview ? `${myLatestReview.cycle} review` : "No review rating yet"} />
-              <StatCard label="My goals" icon="check" tone="green" value={myGoals.length} foot={`${myGoals.filter((goal) => goal.progress >= 100).length} completed`} />
-              <StatCard label="Goal progress" icon="clock" tone="purple" value={myGoals.length ? `${Math.round(myGoals.reduce((total, goal) => total + goal.progress, 0) / myGoals.length)}%` : "—"} foot="Average across your goals" />
-              <StatCard label="Review status" icon="people" tone="orange" value={myLatestReview?.status ?? "Not started"} foot={myLatestReview?.cycle ?? (cycle ? `Current cycle · ${cycle}` : "Current cycle")} />
-            </div>
-            {myLatestReview && (myLatestReview.selfAppraisal || myLatestReview.summary) ? <div className="performance-personal-notes">
-              {myLatestReview.selfAppraisal ? <div><strong>Your self-appraisal</strong><p>{myLatestReview.selfAppraisal}</p></div> : null}
-              {myLatestReview.summary ? <div><strong>Latest review notes</strong><p>{myLatestReview.summary}</p></div> : null}
-            </div> : null}
-          </Panel>
-          {myGoals.length ? <Panel title="My goals" subtitle="Your individual goals and progress.">
-            <ul className="goal-list">{myGoals.map((goal) => <li key={goal.id} className="goal"><div className="goal-main"><strong>{goal.title}</strong><span>{goal.department === "Company" ? "Company goal" : goal.department} · due {formatDate(`${goal.dueDate}T12:00:00Z`)}</span><div className="bar goal-bar" aria-hidden="true"><i style={{ width: `${goal.progress}%` }} /></div></div><div className="goal-side"><strong>{goal.progress}%</strong></div></li>)}</ul>
-          </Panel> : null}
-        </> : <Panel title="Your employee profile is not linked" subtitle="Ask an administrator to link your work account to an employee profile to see your personal goals and reviews."><p className="stat-foot">Your HR department overview is available below while your profile is being linked.</p></Panel>}
+            </Panel>
+            <Panel title="Performance overview" subtitle={myLatestReview ? `Latest review · ${myLatestReview.cycle}` : cycle ? `Review cycle · ${cycle}` : "Your review history"}>
+              <div className="performance-overview-body">
+                <div className="performance-rating-ring"><strong>{myLatestReview?.rating ? `${myLatestReview.rating}` : "—"}<small>{myLatestReview?.rating ? "/5" : ""}</small></strong><span>{myLatestReview?.rating ? "Overall rating" : "Not rated"}</span></div>
+                <div className="performance-overview-details">
+                  <div><span>Review status</span><strong>{myLatestReview?.status ?? "Not started"}</strong></div>
+                  <div><span>Reviewer</span><strong>{myLatestReview?.reviewerName || "Not assigned"}</strong></div>
+                  <div><span>Latest cycle</span><strong>{myLatestReview?.cycle ?? cycle ?? "—"}</strong></div>
+                </div>
+              </div>
+            </Panel>
+            <Panel title="My goals" subtitle={`${myGoals.length} individual ${myGoals.length === 1 ? "goal" : "goals"}`}>
+              {myGoals.length ? <ul className="performance-my-goals">{myGoals.map((goal) => <li key={goal.id}><div><strong>{goal.title}</strong><span>{goal.department === "Company" ? "Company goal" : goal.department} · due {formatDate(`${goal.dueDate}T12:00:00Z`)}</span></div><strong>{goal.progress}%</strong><div className="bar goal-bar" aria-label={`${goal.progress}% complete`}><i style={{ width: `${goal.progress}%` }} /></div></li>)}</ul> : <p className="stat-foot">Your goals will appear here when they’re assigned.</p>}
+            </Panel>
+            <Panel title="Latest review" subtitle={myLatestReview?.cycle ?? "Review feedback"}>
+              {myLatestReview?.selfAppraisal || myLatestReview?.summary ? <div className="performance-personal-notes">
+                {myLatestReview.selfAppraisal ? <div><strong>Your self-appraisal</strong><p>{myLatestReview.selfAppraisal}</p></div> : null}
+                {myLatestReview.summary ? <div><strong>Manager feedback</strong><p>{myLatestReview.summary}</p></div> : null}
+              </div> : <p className="stat-foot">No review feedback has been recorded yet.</p>}
+            </Panel>
+          </div>
+        </> : <Panel title="Your employee profile is not linked" subtitle="Your personal dashboard will show real employee details after your work account is linked to your profile."><p className="stat-foot">No employee records have been created by this page. HR can continue with the department overview below.</p></Panel>}
       </section>
       <h2 className="performance-admin-heading">HR performance overview</h2>
       <Panel title="Departments" subtitle="Choose a department to see its people, goals, and review progress.">
