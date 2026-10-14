@@ -92,6 +92,32 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
 
   try {
     const before = await loadState(supabase, info.orgId);
+    // Managers may only create goals for, update goals owned by, and review their own direct reports.
+    if (info.me.role === "manager") {
+      const manager = before.employees.find((employee) => employee.email.trim().toLowerCase() === info.me.email.trim().toLowerCase());
+      const managerName = manager?.name.trim().toLowerCase();
+      const managesEmployee = (employeeId: string) => Boolean(managerName && before.employees.some((employee) =>
+        employee.id === employeeId && employee.managerName.trim().toLowerCase() === managerName
+      ));
+      if (!managerName && (action.type === "review/set" || action.type === "goal/progress" || action.type === "goal/add")) {
+        return { ok: false, error: "Your employee profile must be linked before you can manage reviews or goals." };
+      }
+      if (action.type === "review/set" && !managesEmployee(action.employeeId)) {
+        return { ok: false, error: "You can only review your direct reports." };
+      }
+      if (action.type === "goal/add" && !before.employees.some((employee) =>
+        employee.managerName.trim().toLowerCase() === managerName && employee.name.trim().toLowerCase() === action.input.ownerName.trim().toLowerCase()
+      )) {
+        return { ok: false, error: "You can only create goals for your direct reports." };
+      }
+      if (action.type === "goal/progress") {
+        const goal = before.goals.find((item) => item.id === action.goalId);
+        const ownedByReport = goal && before.employees.some((employee) =>
+          employee.managerName.trim().toLowerCase() === managerName && employee.name.trim().toLowerCase() === goal.ownerName.trim().toLowerCase()
+        );
+        if (!ownedByReport) return { ok: false, error: "You can only update goals owned by your direct reports." };
+      }
+    }
     if (action.type === "review/selfAppraise") {
       const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());
       const review = before.reviews.find((r) => r.employeeId === action.employeeId && r.cycle === action.cycle);
