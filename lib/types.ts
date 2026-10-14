@@ -213,8 +213,9 @@ export interface LeaveRequest {
   createdAt: string;
 }
 
-export const GOAL_DEPARTMENTS = ["Company", "Engineering", "People Operations", "Sales", "Product & Design", "Marketing", "Finance"] as const;
-export type GoalDepartment = (typeof GOAL_DEPARTMENTS)[number];
+/** New goals are department-owned. "Company" remains readable for older saved goals. */
+export const GOAL_DEPARTMENTS = DEPARTMENTS;
+export type GoalDepartment = Department | "Company";
 
 export interface Goal {
   id: string;
@@ -330,3 +331,4 @@ export interface Activity {
   detail: string;
   at: string;
 }
+
