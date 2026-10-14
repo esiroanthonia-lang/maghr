@@ -46,6 +46,8 @@ const ACTION_ROLES: [prefix: string, roles: Role[]][] = [
   ["employee/updatePersonal", ["hr_admin", "manager", "recruiter", "employee"]],
   ["employee/", ["hr_admin"]],
   ["leave/", ["hr_admin", "manager"]],
+  // HR creates the goals; managers can update progress for their own team.
+  ["goal/add", ["hr_admin"]],
   ["goal/", ["hr_admin", "manager"]],
   ["review/selfAppraise", ["employee"]],
   ["review/", ["hr_admin", "manager"]],
