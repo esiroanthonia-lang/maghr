@@ -94,7 +94,7 @@ export function PerformanceView() {
   const cycleReviews = cycle ? state.reviews.filter((r) => r.cycle === cycle) : [];
   const scopedReviews = state.reviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
   const scopedCycleReviews = cycleReviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
-  const myEmployee = state.employees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase()) ?? null;
+  const myEmployee = workspace.mode === "live" ? state.employees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase()) ?? null : null;
   const myGoals = myEmployee ? state.goals.filter((goal) => goal.ownerName.trim().toLowerCase() === myEmployee.name.trim().toLowerCase()) : [];
   const myLatestReview = myEmployee
     ? [...state.reviews].filter((review) => review.employeeId === myEmployee.id).sort((a, b) => b.cycle.localeCompare(a.cycle))[0]
@@ -169,7 +169,7 @@ export function PerformanceView() {
           {myGoals.length ? <Panel title="My goals" subtitle="Your individual goals and progress.">
             <ul className="goal-list">{myGoals.map((goal) => <li key={goal.id} className="goal"><div className="goal-main"><strong>{goal.title}</strong><span>{goal.department === "Company" ? "Company goal" : goal.department} · due {formatDate(`${goal.dueDate}T12:00:00Z`)}</span><div className="bar goal-bar" aria-hidden="true"><i style={{ width: `${goal.progress}%` }} /></div></div><div className="goal-side"><strong>{goal.progress}%</strong></div></li>)}</ul>
           </Panel> : null}
-        </> : <Panel title="Your employee profile is not linked" subtitle="Ask an administrator to link your work account to an employee profile to see your personal goals and reviews." />}
+        </> : <Panel title="Your employee profile is not linked" subtitle="Ask an administrator to link your work account to an employee profile to see your personal goals and reviews."><p className="stat-foot">Your HR department overview is available below while your profile is being linked.</p></Panel>}
       </section>
       <h2 className="performance-admin-heading">HR performance overview</h2>
       <Panel title="Departments" subtitle="Choose a department to see its people, goals, and review progress.">
