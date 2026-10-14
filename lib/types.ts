@@ -331,4 +331,3 @@ export interface Activity {
   detail: string;
   at: string;
 }
-
