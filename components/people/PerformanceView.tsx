@@ -171,7 +171,7 @@ export function PerformanceView() {
               {myGoals.length ? <ul className="performance-my-goals">{myGoals.map((goal) => <li key={goal.id}><div><strong>{goal.title}</strong><span>{goal.department === "Company" ? "Company goal" : goal.department} · due {formatDate(`${goal.dueDate}T12:00:00Z`)}</span></div><strong>{goal.progress}%</strong><div className="bar goal-bar" aria-label={`${goal.progress}% complete`}><i style={{ width: `${goal.progress}%` }} /></div></li>)}</ul> : <p className="stat-foot">Your goals will appear here when they’re assigned.</p>}
             </Panel>
             <Panel title="Latest review" subtitle={myLatestReview?.cycle ?? "Review feedback"}>
-              {myLatestReview?.selfAppraisal || myLatestReview?.summary ? <div className="performance-personal-notes">
+              {myLatestReview && (myLatestReview.selfAppraisal || myLatestReview.summary) ? <div className="performance-personal-notes">
                 {myLatestReview.selfAppraisal ? <div><strong>Your self-appraisal</strong><p>{myLatestReview.selfAppraisal}</p></div> : null}
                 {myLatestReview.summary ? <div><strong>Manager feedback</strong><p>{myLatestReview.summary}</p></div> : null}
               </div> : <p className="stat-foot">No review feedback has been recorded yet.</p>}
