@@ -1200,3 +1200,37 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .performance-score { color: var(--accent); font-size: 13px; }
 @media (max-width: 760px) { .performance-admin-dashboard { grid-template-columns: 1fr; } .performance-completion { justify-content: flex-start; } }
 @media (max-width: 480px) { .performance-completion { gap: 16px; } .performance-completion-ring { width: 112px; height: 112px; flex-basis: 112px; } .performance-completion-ring > div { width: 86px; height: 86px; } }
+
+
+/* Employee personal performance dashboard */
+.employee-performance-dashboard { display: grid; grid-template-columns: minmax(220px, .9fr) minmax(280px, 1.2fr); gap: 14px; margin-bottom: 16px; }
+.employee-performance-dashboard > .panel { min-width: 0; }
+.employee-performance-profile { min-height: 130px; display: flex; align-items: center; gap: 16px; }
+.employee-performance-profile > .person { flex: 0 0 64px; }
+.employee-performance-profile > div { display: grid; gap: 6px; min-width: 0; }
+.employee-performance-profile strong { font-size: 16px; }
+.employee-performance-profile span { font-size: 13px; }
+.employee-performance-profile small { color: var(--muted); font-size: 12px; }
+.employee-performance-score { min-height: 130px; display: flex; align-items: center; gap: 22px; }
+.employee-rating-ring { width: 116px; height: 116px; flex: 0 0 116px; display: grid; place-items: center; border-radius: 50%; }
+.employee-rating-ring > div { width: 88px; height: 88px; display: grid; align-content: center; justify-items: center; gap: 4px; border-radius: 50%; background: var(--surface); }
+.employee-rating-ring strong { font-size: 25px; line-height: 1; }
+.employee-rating-ring strong small { margin-left: 2px; color: var(--muted); font-size: 12px; }
+.employee-rating-ring span { color: var(--muted); font-size: 10px; }
+.employee-performance-facts { flex: 1; display: grid; gap: 10px; min-width: 0; }
+.employee-performance-facts > div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 7px; font-size: 12px; }
+.employee-performance-facts > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.employee-performance-facts span { color: var(--muted); }
+.employee-performance-facts strong { text-align: right; }
+.employee-goal-summary { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.employee-goal-summary li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; }
+.employee-goal-summary li > div:first-child { min-width: 0; display: grid; gap: 4px; }
+.employee-goal-summary li > div:first-child strong { font-size: 12px; }
+.employee-goal-summary li > div:first-child span { color: var(--muted); font-size: 11px; }
+.employee-goal-summary li > strong { color: var(--accent); font-size: 12px; }
+.employee-goal-summary li > .bar { grid-column: 1 / -1; }
+.employee-goal-progress { min-height: 130px; display: grid; align-content: center; gap: 12px; }
+.employee-goal-progress > strong { font-size: 32px; line-height: 1; }
+.employee-goal-progress > span { color: var(--muted); font-size: 12px; }
+@media (max-width: 760px) { .employee-performance-dashboard { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .employee-performance-score { gap: 14px; } .employee-rating-ring { width: 96px; height: 96px; flex-basis: 96px; } .employee-rating-ring > div { width: 72px; height: 72px; } }
