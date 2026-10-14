@@ -102,7 +102,7 @@ export function PerformanceView() {
     ? [...state.reviews].filter((review) => review.employeeId === myEmployee.id).sort((a, b) => b.cycle.localeCompare(a.cycle))[0]
     : null;
   const completed = departmentPeople.filter((employee) => scopedCycleReviews.some((review) => review.employeeId === employee.id && review.status === "Completed")).length;
-  const inProgressReviews = departmentPeople.filter((employee) => scopedCycleReviews.some((review) => review.employeeId === employee.id && review.status === "In progress")).length;
+  const inProgressReviews = departmentPeople.filter((employee) => scopedCycleReviews.some((review) => review.employeeId === employee.id && review.status !== "Not started" && review.status !== "Completed")).length;
   const notStartedReviews = Math.max(0, departmentPeople.length - completed - inProgressReviews);
   const completionRate = departmentPeople.length ? Math.round((completed / departmentPeople.length) * 100) : 0;
   const reportDepartments = departmentFilter === "all" ? departments : [departmentFilter];
