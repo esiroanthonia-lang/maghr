@@ -19,7 +19,7 @@ type Section = "profile" | "leave" | "attendance" | "payslips" | "performance";
 const date = (value: string) => formatDate(`${value}T12:00:00Z`);
 
 export function EmployeePortalPage({ section }: { section: Section }) {
-  const { state, workspace, role, year, now, todayIso, act } = usePeople();
+  const { state, workspace, role, year, now, todayIso, act, saving } = usePeople();
   const toast = useToast();
   const [leaveType, setLeaveType] = useState<LeaveType>("Annual");
   const [start, setStart] = useState("");
@@ -101,8 +101,16 @@ export function EmployeePortalPage({ section }: { section: Section }) {
         {slips.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Pay period</th><th>Gross</th><th>Net pay</th><th>Status</th></tr></thead><tbody>{slips.map((l) => <tr key={l.id}><td>{periodLabel(approved.get(l.runId)!.period)}</td><td>{formatNaira(Math.round(l.gross))}</td><td><strong>{formatNaira(Math.round(l.net))}</strong></td><td><Badge tone="ok">Approved</Badge></td></tr>)}</tbody></table></div> : <EmptyState title="No payslips yet">Your payslips appear here after HR approves a payroll run.</EmptyState>}
       </Panel> : null}
       {section === "performance" ? <>
-        <Panel title="My reviews" subtitle="Your manager will share feedback here">
-          {reviews.length ? <ul className="list">{reviews.map((r) => <li key={r.id} className="list-row"><div className="person-info"><strong>{r.cycle}</strong><span>{r.reviewerName ? `Reviewer: ${r.reviewerName}` : "No reviewer assigned"}{r.rating ? ` · ${r.rating}/5` : ""}</span></div><Badge tone={r.status === "Completed" ? "ok" : "info"}>{r.status}</Badge></li>)}</ul> : <EmptyState title="No review started yet">Your manager will start a review when the next cycle opens.</EmptyState>}
+        <Panel title="My reviews" subtitle="Complete your self-appraisal when your manager opens a review cycle.">
+          {reviews.length ? <ul className="self-review-list">{reviews.map((r) => <li key={r.id} className="self-review-item">
+            <div className="self-review-heading"><div className="person-info"><strong>{r.cycle}</strong><span>{r.reviewerName ? `Reviewer: ${r.reviewerName}` : "No reviewer assigned"}{r.rating ? ` · ${r.rating}/5` : ""}</span></div><Badge tone={r.status === "Completed" ? "ok" : r.status === "Manager review" ? "info" : "neutral"}>{r.status}</Badge></div>
+            {r.status === "Self review" ? <SelfAppraisalForm disabled={saving} onSubmit={(selfAppraisal) => {
+              act({ type: "review/selfAppraise", employeeId: me.id, cycle: r.cycle, selfAppraisal });
+              toast(`Self-appraisal submitted for ${r.cycle}.`);
+            }} /> : null}
+            {r.selfAppraisal ? <div className="self-review-copy"><strong>Your self-appraisal</strong><p>{r.selfAppraisal}</p>{r.selfSubmittedAt ? <span>Submitted {formatDate(r.selfSubmittedAt)}</span> : null}</div> : null}
+            {r.status === "Completed" && r.summary ? <div className="self-review-copy manager-feedback"><strong>Manager feedback</strong><p>{r.summary}</p></div> : null}
+          </li>)}</ul> : <EmptyState title="No review started yet">Your manager will open a review cycle before you can submit a self-appraisal.</EmptyState>}
         </Panel>
         <Panel title="Company goals" subtitle="Shared priorities and progress">
           {state.goals.length ? <ul className="goal-list">{state.goals.map((g) => <li key={g.id} className="goal"><div className="goal-main"><strong>{g.title}</strong><span>{g.ownerName} · due {date(g.dueDate)}</span><div className="bar goal-bar" aria-label={`${g.progress}% complete`}><i style={{ width: `${g.progress}%` }} /></div></div><strong>{g.progress}%</strong></li>)}</ul> : <EmptyState title="No company goals published yet">Check back when your team shares its priorities.</EmptyState>}
@@ -110,5 +118,26 @@ export function EmployeePortalPage({ section }: { section: Section }) {
       </> : null}
     </>
   );
+}
+
+function SelfAppraisalForm({ disabled, onSubmit }: { disabled: boolean; onSubmit: (value: string) => void }) {
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const appraisal = value.trim();
+    if (appraisal.length < 10) return setError("Add a little more detail before submitting.");
+    setError("");
+    onSubmit(appraisal);
+  }
+
+  return <form className="self-appraisal-form" onSubmit={submit} noValidate>
+    <Field label="Your self-appraisal" required full hint="What went well, what was challenging, and what support or goals would help next? Visible to your manager and HR.">
+      {(props) => <textarea {...props} rows={5} maxLength={3000} value={value} onChange={(event) => setValue(event.target.value)} disabled={disabled} placeholder="Reflect on your work this cycle…" />}
+    </Field>
+    <div className="self-appraisal-actions"><span>{value.length} / 3,000</span><button type="submit" className="btn primary small" disabled={disabled || value.trim().length < 10}>Submit self-appraisal</button></div>
+    {error ? <p className="auth-error" role="alert">{error}</p> : null}
+  </form>;
 }
 

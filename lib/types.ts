@@ -251,6 +251,9 @@ export interface Review {
   status: ReviewStatus;
   rating: number | null;
   summary: string;
+  /** Employee's private-to-the-review-cycle self appraisal, separate from manager feedback. */
+  selfAppraisal?: string;
+  selfSubmittedAt?: string | null;
   reviewerName: string;
   updatedAt: string;
 }

@@ -1145,4 +1145,15 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .review-search input::placeholder { color: var(--muted); }
 .review-note { max-width: 240px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 560px) { .performance-filters { width: 100%; } .performance-filters .btn { flex: 1; } .review-search { width: 100%; } }
+.self-review-list { display: grid; gap: 14px; list-style: none; margin: 0; padding: 0 22px 18px; }
+.self-review-item { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.self-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.self-appraisal-form { display: grid; gap: 10px; }
+.self-appraisal-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
+.self-appraisal-form .auth-error { margin: 0; }
+.self-review-copy { padding: 12px; border-radius: 10px; background: var(--sunken); }
+.self-review-copy strong { font-size: 13px; }
+.self-review-copy p { margin: 6px 0 0; color: var(--ink); font-size: 13px; white-space: pre-wrap; }
+.self-review-copy span { display: block; margin-top: 8px; color: var(--muted); font-size: 11px; }
+.manager-feedback { border-left: 3px solid var(--accent); }
 

@@ -47,6 +47,7 @@ const ACTION_ROLES: [prefix: string, roles: Role[]][] = [
   ["employee/", ["hr_admin"]],
   ["leave/", ["hr_admin", "manager"]],
   ["goal/", ["hr_admin", "manager"]],
+  ["review/selfAppraise", ["employee"]],
   ["review/", ["hr_admin", "manager"]],
   ["payroll/", ["hr_admin"]],
   ["settings/", ["hr_admin"]],
