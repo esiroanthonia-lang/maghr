@@ -94,6 +94,11 @@ export function PerformanceView() {
   const cycleReviews = cycle ? state.reviews.filter((r) => r.cycle === cycle) : [];
   const scopedReviews = state.reviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
   const scopedCycleReviews = cycleReviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
+  const myEmployee = state.employees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase()) ?? null;
+  const myGoals = myEmployee ? state.goals.filter((goal) => goal.ownerName.trim().toLowerCase() === myEmployee.name.trim().toLowerCase()) : [];
+  const myLatestReview = myEmployee
+    ? [...state.reviews].filter((review) => review.employeeId === myEmployee.id).sort((a, b) => b.cycle.localeCompare(a.cycle))[0]
+    : null;
   const completed = departmentPeople.filter((employee) => scopedCycleReviews.some((review) => review.employeeId === employee.id && review.status === "Completed")).length;
   const avg = departmentGoals.length ? Math.round(departmentGoals.reduce((n, g) => n + g.progress, 0) / departmentGoals.length) : 0;
   const soon = todayIso ? departmentGoals.filter((g) => g.progress < 100 && g.dueDate >= todayIso && g.dueDate <= new Date(Date.parse(todayIso) + 30 * 86400000).toISOString().slice(0, 10)).length : 0;
@@ -134,6 +139,39 @@ export function PerformanceView() {
           ) : null
         }
       />
+      <section aria-labelledby="my-performance-heading">
+        <div className="section-heading" style={{ marginBottom: 12 }}>
+          <div>
+            <p className="eyebrow">YOUR PERFORMANCE</p>
+            <h2 id="my-performance-heading">My Performance</h2>
+            <p className="stat-foot">Your goals and review progress, followed by the department view for HR.</p>
+          </div>
+        </div>
+        {myEmployee ? <>
+          <Panel>
+            <div className="performance-roster" style={{ marginTop: 0 }}>
+              <div className="performance-personal-profile">
+                <Avatar name={myEmployee.name} />
+                <div><strong>{myEmployee.name}</strong><small>{myEmployee.jobTitle} · {myEmployee.department}</small><small>{myEmployee.managerName ? `Manager: ${myEmployee.managerName}` : "Your employee profile"}</small></div>
+              </div>
+            </div>
+            <div className="stats" style={{ marginTop: 18 }}>
+              <StatCard label="Latest rating" icon="trend" tone="blue" value={myLatestReview?.rating ? `${myLatestReview.rating} / 5` : "—"} foot={myLatestReview ? `${myLatestReview.cycle} review` : "No review rating yet"} />
+              <StatCard label="My goals" icon="check" tone="green" value={myGoals.length} foot={`${myGoals.filter((goal) => goal.progress >= 100).length} completed`} />
+              <StatCard label="Goal progress" icon="clock" tone="purple" value={myGoals.length ? `${Math.round(myGoals.reduce((total, goal) => total + goal.progress, 0) / myGoals.length)}%` : "—"} foot="Average across your goals" />
+              <StatCard label="Review status" icon="people" tone="orange" value={myLatestReview?.status ?? "Not started"} foot={myLatestReview?.cycle ?? (cycle ? `Current cycle · ${cycle}` : "Current cycle")} />
+            </div>
+            {myLatestReview?.selfAppraisal || myLatestReview?.summary ? <div className="performance-personal-notes">
+              {myLatestReview.selfAppraisal ? <div><strong>Your self-appraisal</strong><p>{myLatestReview.selfAppraisal}</p></div> : null}
+              {myLatestReview.summary ? <div><strong>Latest review notes</strong><p>{myLatestReview.summary}</p></div> : null}
+            </div> : null}
+          </Panel>
+          {myGoals.length ? <Panel title="My goals" subtitle="Your individual goals and progress.">
+            <ul className="goal-list">{myGoals.map((goal) => <li key={goal.id} className="goal"><div className="goal-main"><strong>{goal.title}</strong><span>{goal.department === "Company" ? "Company goal" : goal.department} · due {formatDate(`${goal.dueDate}T12:00:00Z`)}</span><div className="bar goal-bar" aria-hidden="true"><i style={{ width: `${goal.progress}%` }} /></div></div><div className="goal-side"><strong>{goal.progress}%</strong></div></li>)}</ul>
+          </Panel> : null}
+        </> : <Panel title="Your employee profile is not linked" subtitle="Ask an administrator to link your work account to an employee profile to see your personal goals and reviews." />}
+      </section>
+      <h2 className="performance-admin-heading">HR performance overview</h2>
       <Panel title="Departments" subtitle="Choose a department to see its people, goals, and review progress.">
         <div className="performance-department-picker" aria-label="Filter performance by department">
           <button type="button" className={`btn small ${departmentFilter === "all" ? "primary" : ""}`} aria-pressed={departmentFilter === "all"} onClick={() => setDepartmentFilter("all")}>All departments</button>
