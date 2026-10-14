@@ -94,9 +94,7 @@ export function PerformanceView() {
   const cycleReviews = cycle ? state.reviews.filter((r) => r.cycle === cycle) : [];
   const scopedReviews = state.reviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
   const scopedCycleReviews = cycleReviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
-  const myEmployee = workspace.mode === "live"
-    ? state.employees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase()) ?? null
-    : state.employees.find((employee) => employee.status === "Active" && employee.department === "People Operations") ?? null;
+  const myEmployee = workspace.mode === "live" ? state.employees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase()) ?? null : null;
   const myGoals = myEmployee ? state.goals.filter((goal) => goal.ownerName.trim().toLowerCase() === myEmployee.name.trim().toLowerCase()) : [];
   const myLatestReview = myEmployee
     ? [...state.reviews].filter((review) => review.employeeId === myEmployee.id).sort((a, b) => b.cycle.localeCompare(a.cycle))[0]
