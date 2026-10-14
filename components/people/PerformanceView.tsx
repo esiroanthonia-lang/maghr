@@ -14,8 +14,8 @@ import { usePeople } from "./usePeople";
 function GoalForm({ employees, initialDepartment, onSubmit, onCancel }: { employees: ReturnType<typeof usePeople>["state"]["employees"]; initialDepartment?: Department; onSubmit: (g: GoalInput) => void; onCancel: () => void }) {
   const availableDepartments = Array.from(new Set(employees.map((employee) => employee.department)));
   const [g, setG] = useState<GoalInput>({ title: "", ownerName: "", department: initialDepartment ?? availableDepartments[0] ?? DEPARTMENTS[0], dueDate: "" });
-  const [error, setError] = useState("");
   const departmentEmployees = employees.filter((employee) => employee.department === g.department);
+  const [error, setError] = useState("");
   function submit(e: FormEvent) {
     e.preventDefault();
     if (g.title.trim().length < 3) return setError("Describe the goal in a few words.");
@@ -87,8 +87,6 @@ export function PerformanceView() {
   const departments = Array.from(new Set(people.map((employee) => employee.department))).sort((a, b) => a.localeCompare(b));
   const departmentPeople = people.filter((employee) => departmentFilter === "all" || employee.department === departmentFilter);
   const scopedEmployeeIds = new Set(departmentPeople.map((employee) => employee.id));
-  // Older goals used "Company" as their area. Keep them visible by deriving
-  // the owning employee's current department until those records are edited.
   const goalDepartment = (goal: (typeof state.goals)[number]): Department | null => goal.department === "Company"
     ? state.employees.find((employee) => employee.name === goal.ownerName)?.department ?? null
     : goal.department;
@@ -271,4 +269,3 @@ function ReviewForm({ review, onSubmit, onCancel }: { review?: Review; onSubmit:
     <div className="modal-actions"><button type="button" className="btn" onClick={onCancel}>Cancel</button><button type="submit" className="btn primary">Save review</button></div>
   </form>;
 }
-
