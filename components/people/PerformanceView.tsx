@@ -116,7 +116,7 @@ export function PerformanceView() {
   const completionRate = departmentPeople.length ? Math.round((completed / departmentPeople.length) * 100) : 0;
   const reportDepartments = departmentFilter === "all" ? departments : [departmentFilter];
   const departmentRatings = reportDepartments.map((department) => {
-    const ids = new Set(people.filter((employee) => employee.department === department).map((employee) => employee.id));
+    const ids = new Set(scopedPeople.filter((employee) => employee.department === department).map((employee) => employee.id));
     const ratings = cycleReviews.filter((review) => ids.has(review.employeeId) && review.status === "Completed" && review.rating !== null).map((review) => review.rating as number);
     return { department, average: ratings.length ? ratings.reduce((total, rating) => total + rating, 0) / ratings.length : null };
   });
