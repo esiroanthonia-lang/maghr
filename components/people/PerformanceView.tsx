@@ -187,11 +187,11 @@ export function PerformanceView() {
           </select>
         </div>
         {!cycle || people.length === 0 ? <EmptyState title="No active employees to review" /> : visiblePeople.length === 0 ? <EmptyState title="No matching reviews">Try a different search or status.</EmptyState> : (
-          <div className="table-wrap"><table className="data-table"><thead><tr><th scope="col">Employee</th><th scope="col">Manager</th><th scope="col">Status</th><th scope="col">Rating</th><th scope="col">Reviewer</th><th scope="col">Notes</th>{editReviews ? <th scope="col">Action</th> : null}</tr></thead><tbody>
+          <div className="table-wrap"><table className="data-table"><thead><tr><th scope="col">Employee</th><th scope="col">Manager</th><th scope="col">Status</th><th scope="col">Rating</th><th scope="col">Reviewer</th><th scope="col">Self-appraisal</th><th scope="col">Manager notes</th>{editReviews ? <th scope="col">Action</th> : null}</tr></thead><tbody>
             {visiblePeople.map((employee) => {
               const review = cycleReviews.find((item) => item.employeeId === employee.id);
               const status = review?.status ?? "Not started";
-              return <tr key={employee.id}><td><span className="row-btn" style={{ cursor: "default" }}><Avatar name={employee.name} /><span className="person-info"><strong>{employee.name}</strong><span>{employee.jobTitle}</span></span></span></td><td>{employee.managerName || "—"}</td><td><Badge tone={status === "Completed" ? "ok" : "neutral"}>{status}</Badge></td><td>{review?.rating ? `${review.rating} / 5` : "—"}</td><td>{review?.reviewerName || "—"}</td><td className="review-note" title={review?.summary || undefined}>{review?.summary || "—"}</td>{editReviews ? <td><button className="btn small" type="button" onClick={() => setEditing({ employeeId: employee.id, employeeName: employee.name, review })}>{review ? "Edit review" : "Start review"}</button></td> : null}</tr>;
+              return <tr key={employee.id}><td><span className="row-btn" style={{ cursor: "default" }}><Avatar name={employee.name} /><span className="person-info"><strong>{employee.name}</strong><span>{employee.jobTitle}</span></span></span></td><td>{employee.managerName || "—"}</td><td><Badge tone={status === "Completed" ? "ok" : "neutral"}>{status}</Badge></td><td>{review?.rating ? `${review.rating} / 5` : "—"}</td><td>{review?.reviewerName || "—"}</td><td className="review-note" title={review?.selfAppraisal || undefined}>{review?.selfAppraisal || "—"}</td><td className="review-note" title={review?.summary || undefined}>{review?.summary || "—"}</td>{editReviews ? <td><button className="btn small" type="button" onClick={() => setEditing({ employeeId: employee.id, employeeName: employee.name, review })}>{review ? "Edit review" : "Start review"}</button></td> : null}</tr>;
             })}
           </tbody></table></div>
         )}
@@ -232,6 +232,7 @@ function ReviewForm({ review, onSubmit, onCancel }: { review?: Review; onSubmit:
     <div className="form-grid">
       <Field label="Review status">{(props) => <select {...props} value={status} onChange={(event) => setStatus(event.target.value as ReviewStatus)}>{REVIEW_STATUSES.map((item) => <option key={item}>{item}</option>)}</select>}</Field>
       <Field label="Rating">{(props) => <select {...props} value={rating} onChange={(event) => setRating(event.target.value)}><option value="">No rating</option>{[1,2,3,4,5].map((item) => <option key={item} value={item}>{item} / 5</option>)}</select>}</Field>
+      {review?.selfAppraisal ? <div className="self-review-copy full"><strong>Employee self-appraisal</strong><p>{review.selfAppraisal}</p></div> : null}
       <Field label="Review notes" full hint="Add a short summary of the discussion and agreed next steps.">{(props) => <textarea {...props} rows={4} value={summary} onChange={(event) => setSummary(event.target.value)} />}</Field>
     </div>
     <div className="modal-actions"><button type="button" className="btn" onClick={onCancel}>Cancel</button><button type="submit" className="btn primary">Save review</button></div>

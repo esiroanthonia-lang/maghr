@@ -43,6 +43,7 @@ const ALLOWED = new Set<RecruitmentAction["type"]>([
   "goal/add",
   "goal/progress",
   "review/set",
+  "review/selfAppraise",
   "payroll/create",
   "payroll/submit",
   "payroll/approve",
@@ -91,6 +92,27 @@ export async function persistAction(raw: unknown): Promise<PersistResult> {
 
   try {
     const before = await loadState(supabase, info.orgId);
+    if (action.type === "review/selfAppraise") {
+      const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());
+      const review = before.reviews.find((r) => r.employeeId === action.employeeId && r.cycle === action.cycle);
+      const selfAppraisal = action.selfAppraisal.trim();
+      if (info.me.role !== "employee" || !mine || action.employeeId !== mine.id) {
+        return { ok: false, error: "You can only submit your own self-appraisal." };
+      }
+      if (!review || review.status !== "Self review") {
+        return { ok: false, error: "Your manager has not opened the self-appraisal step for this review." };
+      }
+      if (selfAppraisal.length < 10 || selfAppraisal.length > 3000) {
+        return { ok: false, error: "Write between 10 and 3,000 characters before submitting." };
+      }
+      const { error } = await supabase.rpc("submit_self_appraisal", {
+        p_employee_id: action.employeeId,
+        p_cycle: action.cycle,
+        p_appraisal: selfAppraisal,
+      });
+      if (error) throw error;
+      return { ok: true, state: await loadState(supabase, info.orgId) };
+    }
     // People who aren't HR admins or managers may only request/cancel their OWN leave.
     if ((action.type === "leave/request" || action.type === "leave/cancel") && !["hr_admin", "manager"].includes(info.me.role)) {
       const mine = before.employees.find((e) => e.email.toLowerCase() === info.me.email.toLowerCase());

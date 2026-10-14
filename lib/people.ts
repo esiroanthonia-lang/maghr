@@ -76,6 +76,7 @@ export type PeopleAction =
   | ({ type: "goal/add"; input: GoalInput } & Meta)
   | ({ type: "goal/progress"; goalId: string; progress: number } & Meta)
   | ({ type: "review/set"; employeeId: string; cycle: string; status: ReviewStatus; rating: number | null; summary: string } & Meta)
+  | ({ type: "review/selfAppraise"; employeeId: string; cycle: string; selfAppraisal: string } & Meta)
   | ({ type: "payroll/create"; period: string } & Meta)
   | ({ type: "payroll/submit"; runId: string } & Meta)
   | ({ type: "payroll/approve"; runId: string } & Meta)
@@ -343,6 +344,8 @@ export function peopleReducer(state: State, action: PeopleAction): State {
         status: action.status,
         rating,
         summary: action.summary.trim().slice(0, 2000),
+        selfAppraisal: existing?.selfAppraisal ?? "",
+        selfSubmittedAt: existing?.selfSubmittedAt ?? null,
         reviewerName: by,
         updatedAt: action.at,
       };
@@ -353,6 +356,22 @@ export function peopleReducer(state: State, action: PeopleAction): State {
           action.status === "Completed" && existing?.status !== "Completed"
             ? log(state, action.id, action.at, "performance", "Review completed", `${nameOf(state, action.employeeId)} · ${action.cycle}`)
             : state.activity,
+      };
+    }
+
+    case "review/selfAppraise": {
+      const review = state.reviews.find((r) => r.employeeId === action.employeeId && r.cycle === action.cycle);
+      const selfAppraisal = action.selfAppraisal.trim().slice(0, 3000);
+      if (!review || review.status !== "Self review" || selfAppraisal.length < 10) return state;
+      return {
+        ...state,
+        reviews: state.reviews.map((r) => r.id === review.id ? {
+          ...r,
+          status: "Manager review",
+          selfAppraisal,
+          selfSubmittedAt: action.at,
+          updatedAt: action.at,
+        } : r),
       };
     }
 
