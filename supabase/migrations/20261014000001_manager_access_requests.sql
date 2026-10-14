@@ -29,7 +29,7 @@ create policy manager_access_request_insert on public.manager_access_requests
   with check (
     user_id = auth.uid()
     and status = 'Pending'
-    and public.has_role(org_id, array['employee','manager'])
+    and public.has_role(org_id, array['employee','manager','recruiter'])
     and exists (
       select 1
       from public.employees e
