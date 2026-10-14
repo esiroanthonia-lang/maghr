@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
 import type { GoalInput } from "@/lib/people";
-import { GOAL_DEPARTMENTS, REVIEW_STATUSES, type GoalDepartment, type Review, type ReviewStatus } from "@/lib/types";
+import { DEPARTMENTS, REVIEW_STATUSES, type Department, type GoalDepartment, type Review, type ReviewStatus } from "@/lib/types";
 import { Avatar, Badge, EmptyState, PageHeader, Panel, StatCard } from "../ui/bits";
 import { Field } from "../ui/Field";
 import { Icon } from "../ui/Icon";
@@ -11,9 +11,11 @@ import { Modal } from "../ui/Modal";
 import { useToast } from "../ui/Toast";
 import { usePeople } from "./usePeople";
 
-function GoalForm({ onSubmit, onCancel }: { onSubmit: (g: GoalInput) => void; onCancel: () => void }) {
-  const [g, setG] = useState<GoalInput>({ title: "", ownerName: "", department: "Company", dueDate: "" });
+function GoalForm({ employees, initialDepartment, onSubmit, onCancel }: { employees: ReturnType<typeof usePeople>["state"]["employees"]; initialDepartment?: Department; onSubmit: (g: GoalInput) => void; onCancel: () => void }) {
+  const availableDepartments = Array.from(new Set(employees.map((employee) => employee.department)));
+  const [g, setG] = useState<GoalInput>({ title: "", ownerName: "", department: initialDepartment ?? availableDepartments[0] ?? DEPARTMENTS[0], dueDate: "" });
   const [error, setError] = useState("");
+  const departmentEmployees = employees.filter((employee) => employee.department === g.department);
   function submit(e: FormEvent) {
     e.preventDefault();
     if (g.title.trim().length < 3) return setError("Describe the goal in a few words.");
@@ -28,13 +30,16 @@ function GoalForm({ onSubmit, onCancel }: { onSubmit: (g: GoalInput) => void; on
         <Field label="Goal" required full hint="Make it measurable, e.g. “Cut time-to-hire to 21 days”.">
           {(p) => <input {...p} data-autofocus value={g.title} onChange={(e) => setG({ ...g, title: e.target.value })} />}
         </Field>
-        <Field label="Owner" required>
-          {(p) => <input {...p} value={g.ownerName} onChange={(e) => setG({ ...g, ownerName: e.target.value })} placeholder="Person or team" />}
+        <Field label="Owner" required hint="Choose an employee from this department.">
+          {(p) => <select {...p} value={g.ownerName} onChange={(e) => setG({ ...g, ownerName: e.target.value })}>
+            <option value="">Choose an employee</option>
+            {departmentEmployees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name} · {employee.jobTitle}</option>)}
+          </select>}
         </Field>
-        <Field label="Area">
+        <Field label="Department">
           {(p) => (
-            <select {...p} value={g.department} onChange={(e) => setG({ ...g, department: e.target.value as GoalDepartment })}>
-              {GOAL_DEPARTMENTS.map((d) => (
+            <select {...p} value={g.department} onChange={(e) => setG({ ...g, department: e.target.value as GoalDepartment, ownerName: "" })}>
+              {availableDepartments.map((d) => (
                 <option key={d}>{d}</option>
               ))}
             </select>
@@ -62,28 +67,46 @@ function GoalForm({ onSubmit, onCancel }: { onSubmit: (g: GoalInput) => void; on
 }
 
 export function PerformanceView() {
-  const { state, act, can, now, todayIso } = usePeople();
+  const { state, act, can, now, todayIso, workspace } = usePeople();
   const toast = useToast();
   const [showGoal, setShowGoal] = useState(false);
   const [section, setSection] = useState<"goals" | "reviews">("goals");
+  const [departmentFilter, setDepartmentFilter] = useState<Department | "all">(() => {
+    const activeEmployees = state.employees.filter((employee) => employee.status === "Active");
+    const signedInEmployee = workspace.mode === "live"
+      ? activeEmployees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase())
+      : undefined;
+    return signedInEmployee?.department ?? activeEmployees[0]?.department ?? "all";
+  });
   const [goalFilter, setGoalFilter] = useState<"all" | "open" | "completed">("all");
   const [reviewFilter, setReviewFilter] = useState<"all" | ReviewStatus>("all");
   const [reviewSearch, setReviewSearch] = useState("");
   const [editing, setEditing] = useState<{ employeeId: string; employeeName: string; review?: Review } | null>(null);
   const cycle = now ? `Q${Math.floor(now.getUTCMonth() / 3) + 1} ${now.getUTCFullYear()}` : null;
   const people = state.employees.filter((e) => e.status === "Active");
+  const departments = Array.from(new Set(people.map((employee) => employee.department))).sort((a, b) => a.localeCompare(b));
+  const departmentPeople = people.filter((employee) => departmentFilter === "all" || employee.department === departmentFilter);
+  const scopedEmployeeIds = new Set(departmentPeople.map((employee) => employee.id));
+  // Older goals used "Company" as their area. Keep them visible by deriving
+  // the owning employee's current department until those records are edited.
+  const goalDepartment = (goal: (typeof state.goals)[number]): Department | null => goal.department === "Company"
+    ? state.employees.find((employee) => employee.name === goal.ownerName)?.department ?? null
+    : goal.department;
+  const departmentGoals = state.goals.filter((goal) => departmentFilter === "all" || goalDepartment(goal) === departmentFilter);
   const cycleReviews = cycle ? state.reviews.filter((r) => r.cycle === cycle) : [];
-  const completed = people.filter((employee) => cycleReviews.some((review) => review.employeeId === employee.id && review.status === "Completed")).length;
-  const avg = state.goals.length ? Math.round(state.goals.reduce((n, g) => n + g.progress, 0) / state.goals.length) : 0;
-  const soon = todayIso ? state.goals.filter((g) => g.progress < 100 && g.dueDate >= todayIso && g.dueDate <= new Date(Date.parse(todayIso) + 30 * 86400000).toISOString().slice(0, 10)).length : 0;
+  const scopedReviews = state.reviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
+  const scopedCycleReviews = cycleReviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
+  const completed = departmentPeople.filter((employee) => scopedCycleReviews.some((review) => review.employeeId === employee.id && review.status === "Completed")).length;
+  const avg = departmentGoals.length ? Math.round(departmentGoals.reduce((n, g) => n + g.progress, 0) / departmentGoals.length) : 0;
+  const soon = todayIso ? departmentGoals.filter((g) => g.progress < 100 && g.dueDate >= todayIso && g.dueDate <= new Date(Date.parse(todayIso) + 30 * 86400000).toISOString().slice(0, 10)).length : 0;
   const editGoals = can("goal/progress");
   const editReviews = can("review/set");
-  const completedGoals = state.goals.filter((g) => g.progress >= 100).length;
-  const overdueGoals = todayIso ? state.goals.filter((g) => g.progress < 100 && g.dueDate < todayIso).length : 0;
-  const visibleGoals = [...state.goals]
+  const completedGoals = departmentGoals.filter((g) => g.progress >= 100).length;
+  const overdueGoals = todayIso ? departmentGoals.filter((g) => g.progress < 100 && g.dueDate < todayIso).length : 0;
+  const visibleGoals = [...departmentGoals]
     .filter((g) => goalFilter === "all" || (goalFilter === "completed" ? g.progress >= 100 : g.progress < 100))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  const visiblePeople = people.filter((employee) => {
+  const visiblePeople = departmentPeople.filter((employee) => {
     const review = cycleReviews.find((item) => item.employeeId === employee.id);
     const status = review?.status ?? "Not started";
     const query = reviewSearch.trim().toLowerCase();
@@ -104,7 +127,7 @@ export function PerformanceView() {
       <PageHeader
         eyebrow="GROW WITH PURPOSE"
         title="Performance"
-        intro="Clear goals, regular reviews, and progress everyone can see."
+        intro="Set goals and review progress by department."
         actions={
           can("goal/add") ? (
             <button type="button" className="btn primary" onClick={() => setShowGoal(true)}>
@@ -113,16 +136,26 @@ export function PerformanceView() {
           ) : null
         }
       />
+      <Panel title="Departments" subtitle="Choose a department to see its people, goals, and review progress.">
+        <div className="performance-department-picker" aria-label="Filter performance by department">
+          <button type="button" className={`btn small ${departmentFilter === "all" ? "primary" : ""}`} aria-pressed={departmentFilter === "all"} onClick={() => setDepartmentFilter("all")}>All departments</button>
+          {departments.map((department) => <button key={department} type="button" className={`btn small ${departmentFilter === department ? "primary" : ""}`} aria-pressed={departmentFilter === department} onClick={() => setDepartmentFilter(department)}>{department}<span className="count">{people.filter((employee) => employee.department === department).length}</span></button>)}
+        </div>
+        <div className="performance-roster">
+          <strong>{departmentFilter === "all" ? "People across departments" : `People in ${departmentFilter}`}</strong>
+          {departmentPeople.length ? <ul>{departmentPeople.map((employee) => <li key={employee.id}><Avatar name={employee.name} /><span><strong>{employee.name}</strong><small>{employee.jobTitle}</small></span></li>)}</ul> : <p className="stat-foot">No active employees in this department yet.</p>}
+        </div>
+      </Panel>
       <div className="stats">
-        <StatCard label="Goals" icon="trend" tone="orange" value={state.goals.length} foot={`${completedGoals} completed${overdueGoals ? ` · ${overdueGoals} overdue` : ""}`} />
-        <StatCard label="Average progress" icon="check" tone="blue" value={`${avg}%`} foot="Across all goals" />
-        <StatCard label={`Reviews ${cycle ?? ""}`} icon="people" tone="green" value={`${completed}/${people.length}`} foot="Completed this cycle" />
+        <StatCard label="Goals" icon="trend" tone="orange" value={departmentGoals.length} foot={`${completedGoals} completed${overdueGoals ? ` · ${overdueGoals} overdue` : ""}`} />
+        <StatCard label="Average progress" icon="check" tone="blue" value={`${avg}%`} foot={departmentFilter === "all" ? "Across all departments" : `For ${departmentFilter}`} />
+        <StatCard label={`Reviews ${cycle ?? ""}`} icon="people" tone="green" value={`${completed}/${departmentPeople.length}`} foot="Completed this cycle" />
         <StatCard label="Due in 30 days" icon="clock" tone="purple" value={soon} foot="Goals not yet finished" />
       </div>
 
       <div className="tabs performance-tabs" role="tablist" aria-label="Performance sections">
-        <button type="button" role="tab" aria-selected={section === "goals"} className="tab" onClick={() => setSection("goals")}>Goals <span className="count">{state.goals.length}</span></button>
-        <button type="button" role="tab" aria-selected={section === "reviews"} className="tab" onClick={() => setSection("reviews")}>Reviews <span className="count">{people.length}</span></button>
+        <button type="button" role="tab" aria-selected={section === "goals"} className="tab" onClick={() => setSection("goals")}>Goals <span className="count">{departmentGoals.length}</span></button>
+        <button type="button" role="tab" aria-selected={section === "reviews"} className="tab" onClick={() => setSection("reviews")}>Reviews <span className="count">{departmentPeople.length}</span></button>
       </div>
 
       {section === "goals" ? <Panel title="Goals" subtitle="Status compares progress with how much time has passed.">
@@ -130,13 +163,13 @@ export function PerformanceView() {
           <div className="performance-filters" aria-label="Filter goals">
             {(["all", "open", "completed"] as const).map((filter) => (
               <button key={filter} type="button" className={`btn small ${goalFilter === filter ? "primary" : ""}`} aria-pressed={goalFilter === filter} onClick={() => setGoalFilter(filter)}>
-                {filter === "all" ? `All (${state.goals.length})` : filter === "open" ? `In progress (${state.goals.length - completedGoals})` : `Completed (${completedGoals})`}
+                {filter === "all" ? `All (${departmentGoals.length})` : filter === "open" ? `In progress (${departmentGoals.length - completedGoals})` : `Completed (${completedGoals})`}
               </button>
             ))}
           </div>
         </div>
-        {state.goals.length === 0 ? (
-          <EmptyState title="No goals yet">Create a few company or team goals to get started.</EmptyState>
+        {departmentGoals.length === 0 ? (
+          <EmptyState title="No goals for this department">Create a department goal to get started.</EmptyState>
         ) : visibleGoals.length === 0 ? (
           <EmptyState title="No goals in this view">Choose another filter to see more goals.</EmptyState>
         ) : (
@@ -149,7 +182,7 @@ export function PerformanceView() {
                     <div className="goal-main">
                       <strong>{g.title}</strong>
                       <span>
-                        {g.ownerName} · {g.department} · due {formatDate(`${g.dueDate}T12:00:00Z`)}
+                        {g.ownerName} · {goalDepartment(g) ?? "Department not set"} · due {formatDate(`${g.dueDate}T12:00:00Z`)}
                       </span>
                       <div className="bar goal-bar" aria-hidden="true">
                         <i style={{ width: `${g.progress}%` }} />
@@ -198,12 +231,12 @@ export function PerformanceView() {
       </Panel>}
 
       <p className="stat-foot" style={{ marginTop: 10 }}>
-        Ratings are set by people. MagHR never scores staff automatically. {pluralise(state.reviews.filter((r) => r.status === "Completed").length, "review")} completed across all cycles.
+        Ratings are set by people. MagHR never scores staff automatically. {pluralise(scopedReviews.filter((r) => r.status === "Completed").length, "review")} completed across the selected departments.
       </p>
 
       {showGoal ? (
         <Modal title="New goal" onClose={() => setShowGoal(false)}>
-          <GoalForm
+          <GoalForm employees={people} initialDepartment={departmentFilter === "all" ? undefined : departmentFilter}
             onCancel={() => setShowGoal(false)}
             onSubmit={(g) => {
               act({ type: "goal/add", input: g });
@@ -238,3 +271,4 @@ function ReviewForm({ review, onSubmit, onCancel }: { review?: Review; onSubmit:
     <div className="modal-actions"><button type="button" className="btn" onClick={onCancel}>Cancel</button><button type="submit" className="btn primary">Save review</button></div>
   </form>;
 }
+
