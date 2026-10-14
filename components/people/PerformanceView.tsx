@@ -102,6 +102,27 @@ export function PerformanceView() {
     ? [...state.reviews].filter((review) => review.employeeId === myEmployee.id).sort((a, b) => b.cycle.localeCompare(a.cycle))[0]
     : null;
   const completed = departmentPeople.filter((employee) => scopedCycleReviews.some((review) => review.employeeId === employee.id && review.status === "Completed")).length;
+  const inProgressReviews = departmentPeople.filter((employee) => scopedCycleReviews.some((review) => review.employeeId === employee.id && review.status === "In progress")).length;
+  const notStartedReviews = Math.max(0, departmentPeople.length - completed - inProgressReviews);
+  const completionRate = departmentPeople.length ? Math.round((completed / departmentPeople.length) * 100) : 0;
+  const reportDepartments = departmentFilter === "all" ? departments : [departmentFilter];
+  const departmentRatings = reportDepartments.map((department) => {
+    const ids = new Set(people.filter((employee) => employee.department === department).map((employee) => employee.id));
+    const ratings = cycleReviews.filter((review) => ids.has(review.employeeId) && review.status === "Completed" && review.rating !== null).map((review) => review.rating as number);
+    return { department, average: ratings.length ? ratings.reduce((total, rating) => total + rating, 0) / ratings.length : null };
+  });
+  const topPerformers = scopedCycleReviews
+    .filter((review) => review.status === "Completed" && review.rating !== null)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    .slice(0, 5)
+    .map((review) => ({ review, employee: state.employees.find((employee) => employee.id === review.employeeId) }))
+    .filter((item): item is { review: Review; employee: (typeof state.employees)[number] } => Boolean(item.employee));
+  const recentReviews = [...scopedCycleReviews]
+    .filter((review) => review.status !== "Not started")
+    .sort((a, b) => b.cycle.localeCompare(a.cycle))
+    .slice(0, 5)
+    .map((review) => ({ review, employee: state.employees.find((employee) => employee.id === review.employeeId) }))
+    .filter((item): item is { review: Review; employee: (typeof state.employees)[number] } => Boolean(item.employee));
   const avg = departmentGoals.length ? Math.round(departmentGoals.reduce((n, g) => n + g.progress, 0) / departmentGoals.length) : 0;
   const soon = todayIso ? departmentGoals.filter((g) => g.progress < 100 && g.dueDate >= todayIso && g.dueDate <= new Date(Date.parse(todayIso) + 30 * 86400000).toISOString().slice(0, 10)).length : 0;
   const editGoals = can("goal/progress");
@@ -190,6 +211,21 @@ export function PerformanceView() {
           {departmentPeople.length ? <ul>{departmentPeople.map((employee) => <li key={employee.id}><Avatar name={employee.name} /><span><strong>{employee.name}</strong><small>{employee.jobTitle}</small></span></li>)}</ul> : <p className="stat-foot">No active employees in this department yet.</p>}
         </div>
       </Panel>
+      <div className="performance-admin-dashboard">
+        <Panel title={departmentFilter === "all" ? "Performance by department" : `Performance · ${departmentFilter}`} subtitle="Average completed review ratings this cycle">
+          <ul className="performance-department-bars">{departmentRatings.map(({ department, average }) => <li key={department}><span>{department}</span><div className="performance-dept-bar"><i style={{ width: average === null ? "0%" : `${(average / 5) * 100}%` }} /></div><strong>{average === null ? "—" : average.toFixed(1)}</strong></li>)}</ul>
+          {!departmentRatings.some((item) => item.average !== null) ? <p className="stat-foot">Ratings appear here after reviews are completed.</p> : null}
+        </Panel>
+        <Panel title="Review completion" subtitle={cycle ? `Current cycle · ${cycle}` : "Current review cycle"}>
+          <div className="performance-completion"><div className="performance-completion-ring" style={{ background: `conic-gradient(var(--accent) ${completionRate}%, var(--line) 0)` }}><div><strong>{completionRate}%</strong><span>Completed</span></div></div><ul><li><i className="completion-dot done" />Completed <strong>{completed}</strong></li><li><i className="completion-dot progress" />In progress <strong>{inProgressReviews}</strong></li><li><i className="completion-dot pending" />Not started <strong>{notStartedReviews}</strong></li></ul></div>
+        </Panel>
+        <Panel title="Top performers" subtitle="Highest completed ratings in the selected department">
+          {topPerformers.length ? <ol className="performance-top-list">{topPerformers.map(({ review, employee }, index) => <li key={review.id}><span className="rank">{String(index + 1).padStart(2, "0")}</span><Avatar name={employee.name} /><span className="performance-top-person"><strong>{employee.name}</strong><small>{employee.jobTitle}</small></span><strong className="performance-score">{review.rating?.toFixed(1)}</strong></li>)}</ol> : <p className="stat-foot">Top performers will appear after rated reviews are completed.</p>}
+        </Panel>
+        <Panel title="Recent reviews" subtitle="Latest review activity for this department">
+          {recentReviews.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th scope="col">Employee</th><th scope="col">Cycle</th><th scope="col">Rating</th><th scope="col">Status</th></tr></thead><tbody>{recentReviews.map(({ review, employee }) => <tr key={review.id}><td><span className="row-btn" style={{ cursor: "default" }}><Avatar name={employee.name} /><span className="person-info"><strong>{employee.name}</strong><span>{employee.department}</span></span></span></td><td>{review.cycle}</td><td>{review.rating ? `${review.rating} / 5` : "—"}</td><td><Badge tone={review.status === "Completed" ? "ok" : "neutral"}>{review.status}</Badge></td></tr>)}</tbody></table></div> : <p className="stat-foot">Reviews will appear here when a manager starts a review.</p>}
+        </Panel>
+      </div>
       <div className="stats">
         <StatCard label="Goals" icon="trend" tone="orange" value={departmentGoals.length} foot={`${completedGoals} completed${overdueGoals ? ` · ${overdueGoals} overdue` : ""}`} />
         <StatCard label="Average progress" icon="check" tone="blue" value={`${avg}%`} foot={departmentFilter === "all" ? "Across all departments" : `For ${departmentFilter}`} />
