@@ -175,7 +175,7 @@ export function PerformanceView() {
       <Panel title={isManager ? "Your team" : "Departments"} subtitle={isManager ? "Choose one of your direct report departments, or view your whole team." : "Choose a department to see its people, goals, and review progress."}>
         <div className="performance-department-picker" aria-label="Filter performance by department">
           <button type="button" className={`btn small ${departmentFilter === "all" ? "primary" : ""}`} aria-pressed={departmentFilter === "all"} onClick={() => setDepartmentFilter("all")}>{isManager ? `My reports (${managedPeople.length})` : "All departments"}</button>
-          {departments.map((department) => <button key={department} type="button" className={`btn small ${departmentFilter === department ? "primary" : ""}`} aria-pressed={departmentFilter === department} onClick={() => setDepartmentFilter(department)}>{department}<span className="count">{people.filter((employee) => employee.department === department).length}</span></button>)}
+          {departments.map((department) => <button key={department} type="button" className={`btn small ${departmentFilter === department ? "primary" : ""}`} aria-pressed={departmentFilter === department} onClick={() => setDepartmentFilter(department)}>{department}<span className="count">{scopedPeople.filter((employee) => employee.department === department).length}</span></button>)}
         </div>
         <div className="performance-roster">
           <strong>{departmentFilter === "all" ? (isManager ? "Your direct reports" : "People across departments") : `People in ${departmentFilter}`}</strong>
