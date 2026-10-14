@@ -148,7 +148,7 @@ export function PerformanceView() {
           </div>
         </div>
         {myEmployee ? <>
-          <Panel>
+          <Panel title="Your performance summary">
             <div className="performance-roster" style={{ marginTop: 0 }}>
               <div className="performance-personal-profile">
                 <Avatar name={myEmployee.name} />
@@ -161,7 +161,7 @@ export function PerformanceView() {
               <StatCard label="Goal progress" icon="clock" tone="purple" value={myGoals.length ? `${Math.round(myGoals.reduce((total, goal) => total + goal.progress, 0) / myGoals.length)}%` : "—"} foot="Average across your goals" />
               <StatCard label="Review status" icon="people" tone="orange" value={myLatestReview?.status ?? "Not started"} foot={myLatestReview?.cycle ?? (cycle ? `Current cycle · ${cycle}` : "Current cycle")} />
             </div>
-            {myLatestReview?.selfAppraisal || myLatestReview?.summary ? <div className="performance-personal-notes">
+            {myLatestReview && (myLatestReview.selfAppraisal || myLatestReview.summary) ? <div className="performance-personal-notes">
               {myLatestReview.selfAppraisal ? <div><strong>Your self-appraisal</strong><p>{myLatestReview.selfAppraisal}</p></div> : null}
               {myLatestReview.summary ? <div><strong>Latest review notes</strong><p>{myLatestReview.summary}</p></div> : null}
             </div> : null}
