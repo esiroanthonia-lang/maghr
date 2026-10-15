@@ -142,11 +142,13 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
 
   return (
     <>
-      <nav className="crumbs-back" aria-label="Breadcrumb">
-        <Link href="/employees">Employees</Link>
-        <span aria-hidden="true"> / </span>
-        <span aria-current="page">{e.name}</span>
-      </nav>
+      {!isSelf || isAdmin ? (
+        <nav className="crumbs-back" aria-label="Breadcrumb">
+          <Link href="/employees">Employees</Link>
+          <span aria-hidden="true"> / </span>
+          <span aria-current="page">{e.name}</span>
+        </nav>
+      ) : null}
 
       <section className="profile-head" aria-labelledby="profile-name">
         <Avatar name={e.name} large />
@@ -266,7 +268,7 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
               ]}
             />
           </Section>
-          {isSelf ? <Section title="Manager access">
+          {isSelf && (role === "manager" || reports.length > 0) ? <Section title="Manager access">
             {role === "manager" ? <p className="stat-foot" style={{ margin: 0 }}>Manager access is active. You can open Performance to review your assigned direct reports.</p> : reports.length === 0 ? <p className="stat-foot" style={{ margin: 0 }}>No direct reports are linked to your profile yet. Ask HR to assign you as manager on their employee profiles first.</p> : managerRequestSent ? <p className="stat-foot" role="status" style={{ margin: 0 }}>Your manager access request is with HR. You’ll get access after it is approved.</p> : <form onSubmit={(event) => {
               event.preventDefault();
               startManagerRequest(async () => {
@@ -307,7 +309,7 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
               </div>
               <div>
                 <strong>{reviews[0]?.rating ? `${reviews[0].rating}/5` : "—"}</strong>
-                <span>{reviews[0] ? reviews[0].cycle : "no review yet"}</span>
+                <span>{reviews[0] ? `rating, ${reviews[0].cycle}` : "no review yet"}</span>
               </div>
               <div>
                 <strong>{onb.total ? `${onb.done}/${onb.total}` : "—"}</strong>

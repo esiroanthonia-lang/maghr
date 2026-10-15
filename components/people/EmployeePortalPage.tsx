@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { formatDate, pluralise } from "@/lib/format";
 import { lagosDate, lagosTime } from "@/lib/attendance";
@@ -73,7 +72,7 @@ export function EmployeePortalPage({ section }: { section: Section }) {
 
   return (
     <>
-      <PageHeader eyebrow="My space" title={title[section]} intro={intro[section]} actions={<Link className="btn" href="/me">Back to my dashboard</Link>} />
+      <PageHeader eyebrow="My space" title={title[section]} intro={intro[section]} />
       {section === "leave" ? <>
         <div className="stats employee-stats">
           <StatCard label="Annual leave left" value={balance?.remaining ?? "—"} foot={balance ? `of ${balance.allowance} days this year` : "Balance unavailable"} icon="calendar" tone="green" />
@@ -105,7 +104,7 @@ export function EmployeePortalPage({ section }: { section: Section }) {
         </Panel>
       </> : null}
       {section === "payslips" ? <Panel title="Approved payslips" subtitle="Only approved payroll is visible here">
-        {slips.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Pay period</th><th>Gross</th><th>Net pay</th><th>Status</th><th>Payslip</th></tr></thead><tbody>{slips.map((l) => <tr key={l.id}><td>{periodLabel(approved.get(l.runId)!.period)}</td><td>{formatNaira(Math.round(l.gross))}</td><td><strong>{formatNaira(Math.round(l.net))}</strong></td><td><Badge tone="ok">Approved</Badge></td><td><button type="button" className="btn small" onClick={() => setSlipId(l.id)}>View and download</button></td></tr>)}</tbody></table></div> : <EmptyState title="No payslips yet">Your payslips appear here after HR approves a payroll run. If a run was approved and yours is missing, ask HR to check that your pay is set and your work email matches your sign-in email.</EmptyState>}
+        {slips.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Pay period</th><th className="col-m-hide">Gross</th><th>Net pay</th><th className="col-m-hide">Status</th><th>Payslip</th></tr></thead><tbody>{slips.map((l) => <tr key={l.id}><td>{periodLabel(approved.get(l.runId)!.period)}</td><td className="col-m-hide">{formatNaira(Math.round(l.gross))}</td><td><strong>{formatNaira(Math.round(l.net))}</strong></td><td className="col-m-hide"><Badge tone="ok">Approved</Badge></td><td><button type="button" className="btn small" onClick={() => setSlipId(l.id)}>View<span className="hide-m"> and download</span></button></td></tr>)}</tbody></table></div> : <EmptyState title="No payslips yet">Your payslips appear here after HR approves a payroll run. If a run was approved and yours is missing, ask HR to check that your pay is set and your work email matches your sign-in email.</EmptyState>}
         {openSlip ? <Modal title={`Payslip · ${periodLabel(approved.get(openSlip.runId)!.period)}`} onClose={() => setSlipId(null)}>
           <PayslipCard company={state.settings.companyName} period={periodLabel(approved.get(openSlip.runId)!.period)} name={me.name} detail={`${me.jobTitle} · ${me.department}`} slip={openSlip} estimate={false} status="Approved" />
           <div className="modal-actions">
@@ -132,14 +131,15 @@ export function EmployeePortalPage({ section }: { section: Section }) {
               </div>
             </div>
           </Panel>
-          <Panel title="My goals" subtitle={`${employeeGoals.length} assigned ${pluralise(employeeGoals.length, "goal")}`}>
+          <Panel title="My goals" subtitle={employeeGoals.length ? `${pluralise(employeeGoals.length, "goal")} assigned to you` : "Set with your manager"}>
             {employeeGoals.length ? <ul className="employee-goal-summary">{employeeGoals.map((goal) => <li key={goal.id}><div><strong>{goal.title}</strong><span>Due {date(goal.dueDate)}</span></div><strong>{goal.progress}%</strong><div className="bar goal-bar"><i style={{ width: `${goal.progress}%` }} /></div></li>)}</ul> : <EmptyState title="No individual goals yet">Goals assigned to you will appear here.</EmptyState>}
           </Panel>
           <Panel title="Goal progress" subtitle="Across your assigned goals">
             <div className="employee-goal-progress">
-              <strong>{goalProgress === null ? "—" : `${goalProgress}%`}</strong>
-              <span>{employeeGoals.filter((goal) => goal.progress >= 100).length} of {employeeGoals.length} goals completed</span>
-              <div className="bar goal-bar"><i style={{ width: `${goalProgress ?? 0}%` }} /></div>
+              {goalProgress === null ? <span>Progress shows here once you have goals.</span> : <>
+              <strong>{`${goalProgress}%`}</strong>
+              <span>{employeeGoals.filter((goal) => goal.progress >= 100).length} of {pluralise(employeeGoals.length, "goal")} completed</span>
+              <div className="bar goal-bar"><i style={{ width: `${goalProgress}%` }} /></div></>}
             </div>
           </Panel>
         </div>

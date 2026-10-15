@@ -14,7 +14,7 @@ export const WORKSPACE_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: "overview", ready: true },
   { href: "/team", label: "My team", icon: "people", ready: true },
   { href: "/me", label: "My space", icon: "user", ready: true },
-  { href: "/me/profile", label: "My profile", icon: "user", ready: true },
+  { href: "/me/profile", label: "My profile", icon: "doc", ready: true },
   { href: "/me/leave", label: "My leave", icon: "calendar", ready: true },
   { href: "/me/attendance", label: "My attendance", icon: "clock", ready: true },
   { href: "/me/payslips", label: "My payslips", icon: "naira", ready: true },

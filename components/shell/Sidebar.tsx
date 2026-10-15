@@ -10,6 +10,14 @@ import { Icon } from "../ui/Icon";
 import { Wordmark } from "../ui/Logo";
 import { useToast } from "../ui/Toast";
 
+/** Short labels for the phone tab bar, where there is room for one word. */
+const SHORT: Record<string, string> = { "My space": "Me", "People overview": "Home", Overview: "Home", "WhatsApp desk": "WhatsApp", "My performance": "Reviews" };
+const shortLabel = (label: string) => {
+  if (SHORT[label]) return SHORT[label];
+  const s = label.replace(/^My /, "").split(" & ")[0];
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
 function NavLink({ item, pathname, pill }: { item: NavItem; pathname: string; pill?: number }) {
   const active = item.href === "/" ? pathname === "/" : pathname === item.href || (pathname.startsWith(item.href) && !(item.href === "/me" && pathname !== "/me"));
   return (
@@ -18,6 +26,7 @@ function NavLink({ item, pathname, pill }: { item: NavItem; pathname: string; pi
         <Icon name={item.icon} />
       </span>
       <span className="nav-text">{item.label}</span>
+      <span className="nav-short" aria-hidden="true">{shortLabel(item.label)}</span>
       {pill ? (
         <span className="pill" aria-label={`${pill} new applications`}>
           {pill}
