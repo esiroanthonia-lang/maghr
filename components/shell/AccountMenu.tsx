@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/actions/auth";
 import { initials } from "@/lib/format";
@@ -12,9 +11,7 @@ import type { Role } from "@/lib/workspace";
 export function AccountMenu({ name, roleLabel, role, live, title }: { name: string; roleLabel: string; role: Role; live: boolean; title?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
 
-  useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -50,7 +47,7 @@ export function AccountMenu({ name, roleLabel, role, live, title }: { name: stri
           {links
             .filter(([href]) => canOpen(role, href))
             .map(([href, label]) => (
-              <Link key={href} href={href} role="menuitem" className="account-item">
+              <Link key={href} href={href} role="menuitem" className="account-item" onClick={() => setOpen(false)}>
                 {label}
               </Link>
             ))}
