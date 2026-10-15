@@ -272,6 +272,9 @@ export function peopleReducer(state: State, action: PeopleAction): State {
       const reason = action.reason ?? "Resignation";
       if (!e || !ISO_DATE.test(action.date) || !["Resignation", "Termination", "Contract ended", "Retirement", "Other"].includes(reason)) return state;
       const checklist = [...new Set(action.checklist ?? [])].filter((id) => ["handover", "property", "access", "pay", "interview", "documents"].includes(id));
+      const existingChecklist = e.exitChecklist ?? [];
+      if (e.status === "Exited" && e.exitedOn === action.date && e.exitReason === reason
+        && existingChecklist.length === checklist.length && existingChecklist.every((item, index) => item === checklist[index])) return state;
       return {
         ...state,
         employees: state.employees.map((x) => (x.id === e.id ? { ...x, status: "Exited", exitedOn: action.date, exitReason: reason, exitChecklist: checklist } : x)),
