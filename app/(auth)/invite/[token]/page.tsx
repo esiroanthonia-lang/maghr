@@ -18,7 +18,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   if (!user) {
     return (
       <>
-        <h1>You’ve been invited to MagHR</h1>
+        <h1>You’ve been invited to Membra</h1>
         <p className="auth-lead">Sign in or create an account with the email address the invitation was sent to.</p>
         <div className="button-row">
           <Link className="btn primary" href={`/signup?next=${encodeURIComponent(here)}`}>

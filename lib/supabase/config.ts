@@ -1,5 +1,5 @@
 // Supabase settings come from environment variables (see .env.example).
-// When they are missing, MagHR runs in demo mode with synthetic data.
+// When they are missing, Membra runs in demo mode with synthetic data.
 
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 // Supabase's newer "publishable" key, or the older "anon" key — both are safe to expose to browsers.

@@ -228,7 +228,7 @@ export function CandidateDrawer({ candidateId }: { candidateId: string }) {
             </dd>
           </dl>
           <p className="stat-foot" style={{ marginTop: 10 }}>
-            Ratings are set by reviewers. MagHR never rejects or ranks candidates automatically.
+            Ratings are set by reviewers. Membra never rejects or ranks candidates automatically.
           </p>
         </section>
 

@@ -282,7 +282,7 @@ export function PerformanceView() {
       </Panel>}
 
       <p className="stat-foot" style={{ marginTop: 10 }}>
-        Ratings are set by people. MagHR never scores staff automatically. {pluralise(scopedReviews.filter((r) => r.status === "Completed").length, "review")} completed across the selected departments.
+        Ratings are set by people. Membra never scores staff automatically. {pluralise(scopedReviews.filter((r) => r.status === "Completed").length, "review")} completed across the selected departments.
       </p>
 
       {showGoal ? (

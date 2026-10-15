@@ -27,7 +27,7 @@ export function AppShell({ children, initialState, workspace }: { children: Reac
               <main id="main" className="content" tabIndex={-1}>
                 <RoleGuard>{children}</RoleGuard>
               </main>
-              {live ? null : <p className="demo-banner">MAGHR · DEMO WORKSPACE · SYNTHETIC DATA · CHANGES RESET ON REFRESH</p>}
+              {live ? null : <p className="demo-banner">MEMBRA · DEMO WORKSPACE · SYNTHETIC DATA · CHANGES RESET ON REFRESH</p>}
             </div>
           </div>
           <DialogHost />

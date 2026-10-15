@@ -1,6 +1,6 @@
-# MagHR
+# Membra
 
-> **Two modes.** Without database settings MagHR runs as a **demo** with synthetic data. With Supabase settings it becomes the **real app**, with sign-in, company workspaces, roles and saved data.
+> **Two modes.** Without database settings Membra runs as a **demo** with synthetic data. With Supabase settings it becomes the **real app**, with sign-in, company workspaces, roles and saved data.
 > To go live, follow **[SETUP.md](SETUP.md)**.
 
 ## Phase 2 — what's real
@@ -17,15 +17,15 @@ How saving works: the browser shows a change instantly, then sends it to a serve
 
 # Phase 1 notes (frontend)
 
-MagHR is an HR management web app for the Nigerian market, built with **Next.js + TypeScript**.
+Membra is an HR management web app for the Nigerian market, built with **Next.js + TypeScript**.
 This is **increment 1** of Phase 1: the shared app shell, the **Overview** dashboard and the full **Recruitment** module.
 The remaining modules (Employees, Leave & attendance, Payroll, Performance, Reports, Settings) show a "planned for the next increment" page and are waiting on your review, as `docs/CODEX_BUILD_PROMPT.md` asks.
 
 > **Demo only.** All data is synthetic (every email is `@example.com`) and lives in memory. Changes reset on refresh. Nothing is published to MyJobMag, no emails or calendar invites are sent, and there is no database, login or API.
 
-## Where MagHR is built to win
+## Where Membra is built to win
 
-MagHR won't match established HR suites such as SeamlessHR on breadth for a while. Payroll, statutory compliance, ERP integrations and mobile apps take real time. So this build leans on what MyJobMag uniquely has:
+Membra won't match established HR suites such as SeamlessHR on breadth for a while. Payroll, statutory compliance, ERP integrations and mobile apps take real time. So this build leans on what MyJobMag uniquely has:
 
 | Edge | What's in the demo | What it needs to go live |
 | --- | --- | --- |
@@ -87,7 +87,7 @@ app/                    Next.js App Router pages (one folder per module)
   layout.tsx            Root layout → AppShell
   page.tsx              Overview
   recruitment/page.tsx  Recruitment
-  globals.css           MagHR visual system (ported from the prototype)
+  globals.css           Membra visual system (ported from the prototype)
 components/
   shell/                Sidebar, Topbar, GlobalSearch, DialogHost, UiContext, ComingNext
   overview/             OverviewView

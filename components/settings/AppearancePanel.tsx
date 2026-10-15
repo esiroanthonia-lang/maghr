@@ -10,7 +10,7 @@ const MODES: [Mode, string][] = [
   ["system", "Match device"],
 ];
 
-/** Lets each person choose the look of MagHR on this device. */
+/** Lets each person choose the look of Membra on this device. */
 export function AppearancePanel() {
   const { palette, mode } = useAppearance();
   const toast = useToast();

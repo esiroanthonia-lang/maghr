@@ -162,7 +162,7 @@ export function AttendanceBoard() {
     const recs = state.attendance.filter((r) => r.date >= from).sort((a, b) => a.date.localeCompare(b.date));
     const name = (id: string) => state.employees.find((e) => e.id === id)?.name ?? "Unknown";
     downloadText(
-      `maghr-attendance-${today}.csv`,
+      `membra-attendance-${today}.csv`,
       toCsv(
         recs.map((r) => ({
           Date: r.date,

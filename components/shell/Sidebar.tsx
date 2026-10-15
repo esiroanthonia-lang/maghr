@@ -68,7 +68,7 @@ export function Sidebar() {
       <div className="sidebar-bottom">
         Your people. One place.
         <br />
-        <strong>MagHR by MyJobMag</strong>
+        <strong>Membra by MyJobMag</strong>
         <br />
         Prototype · Demo workspace
         <br />

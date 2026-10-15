@@ -19,7 +19,7 @@ function Shell({ company, slug, children }: { company: string; slug: string; chi
       <footer className="careers-foot">
         <LogoMark size={18} />
         <span>
-          Hiring with <strong>MagHR</strong> by MyJobMag
+          Hiring with <strong>Membra</strong> by MyJobMag
         </span>
       </footer>
     </div>

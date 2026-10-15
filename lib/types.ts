@@ -1,4 +1,4 @@
-// Core domain types for MagHR (Phase 1 — frontend only, synthetic demo data).
+// Core domain types for Membra (Phase 1 — frontend only, synthetic demo data).
 
 export const PIPELINE_STAGES = [
   "Applied",

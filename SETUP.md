@@ -1,4 +1,4 @@
-# Going live with MagHR
+# Going live with Membra
 
 This guide turns the demo into a working app with real sign-in and saved data.
 It takes about 30–45 minutes. You need someone comfortable with web dashboards; no coding is required.
@@ -25,7 +25,7 @@ The only keys the app uses are the Supabase **URL** and **publishable key**, whi
    ```bash
    git init
    git add .
-   git commit -m "MagHR"
+   git commit -m "Membra"
    git branch -M main
    git remote add origin https://github.com/YOUR-ORG/maghr.git
    git push -u origin main

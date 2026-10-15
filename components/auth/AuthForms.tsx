@@ -41,7 +41,7 @@ export function LoginForm({ next, linkError }: { next: string; linkError?: boole
         {pending ? "Signing in…" : "Sign in"}
       </button>
       <p className="auth-alt">
-        New to MagHR? <Link href={`/signup${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}>Create an account</Link>
+        New to Membra? <Link href={`/signup${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}>Create an account</Link>
       </p>
     </form>
   );

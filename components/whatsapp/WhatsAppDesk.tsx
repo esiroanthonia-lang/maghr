@@ -158,7 +158,7 @@ export function WhatsAppDesk() {
             <div className="wa-head">
               <span className="wa-avatar" aria-hidden="true">M</span>
               <div>
-                <strong>MagHR · MyJobMag</strong>
+                <strong>Membra · MyJobMag</strong>
                 <span>Business account · demo</span>
               </div>
             </div>

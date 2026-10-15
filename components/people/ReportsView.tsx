@@ -42,7 +42,7 @@ export function ReportsView() {
               className="btn"
               onClick={() =>
                 downloadText(
-                  `maghr-candidates-${stamp}.csv`,
+                  `membra-candidates-${stamp}.csv`,
                   toCsv(
                     state.candidates.map((c) => ({
                       Name: c.name,
@@ -63,7 +63,7 @@ export function ReportsView() {
               className="btn"
               onClick={() =>
                 downloadText(
-                  `maghr-headcount-${stamp}.csv`,
+                  `membra-headcount-${stamp}.csv`,
                   toCsv(headcountByDepartment(state).map((d) => ({ Department: d.department, Headcount: d.count }))),
                 )
               }

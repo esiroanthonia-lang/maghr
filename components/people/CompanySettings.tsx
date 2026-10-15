@@ -154,7 +154,7 @@ export function SettingsIntegrations() {
     ["MyJobMag job posting & CV database", "Needs MyJobMag API approval"],
     ["WhatsApp Business", "Needs a WhatsApp Business Platform account"],
     ["Email sender (SMTP)", "Set up in Supabase → Authentication → Emails"],
-    ["Salary payments", "MagHR prepares the bank schedule; paying out needs a licensed payment provider"],
+    ["Salary payments", "Membra prepares the bank schedule; paying out needs a licensed payment provider"],
   ];
   return (
     <Panel title="Integrations" subtitle="What’s connected">

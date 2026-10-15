@@ -2,7 +2,7 @@
   "name": "maghr",
   "version": "0.1.0",
   "private": true,
-  "description": "MagHR \u2014 HR management web app (Phase 1: frontend only, synthetic demo data)",
+  "description": "Membra \u2014 HR management web app (Phase 1: frontend only, synthetic demo data)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

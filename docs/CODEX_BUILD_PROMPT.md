@@ -1,9 +1,9 @@
-# AI coding prompt: build MagHR
+# AI coding prompt: build Membra
 
-You are helping build **MagHR**, an original HR management web app intended for the Nigerian market and potentially hosted by MyJobMag in the future. The included `maghr_prototype.html` is the visual and interaction reference. Use it as inspiration; do not copy Mesh branding or proprietary assets.
+You are helping build **Membra**, an original HR management web app intended for the Nigerian market and potentially hosted by MyJobMag in the future. The included `maghr_prototype.html` is the visual and interaction reference. Use it as inspiration; do not copy Mesh branding or proprietary assets.
 
 ## Product direction
-Build a clean, professional, responsive SaaS app with original MagHR branding: deep navy sidebar, warm orange accent, white cards, muted grey page background, clear typography, accessible controls, and strong recruitment workflows.
+Build a clean, professional, responsive SaaS app with original Membra branding: deep navy sidebar, warm orange accent, white cards, muted grey page background, clear typography, accessible controls, and strong recruitment workflows.
 
 ## Phase 1 — frontend only
 Use Next.js + TypeScript. First inspect `maghr_prototype.html`, then implement the UI as reusable components. Keep sample/demo data clearly labelled. Do not add a real database, authentication, external APIs, or secrets in Phase 1.
