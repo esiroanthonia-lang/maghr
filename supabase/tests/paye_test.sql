@@ -76,6 +76,16 @@ do $$ declare n int; v numeric; begin
   select count(*), max(net) into n, v from public.payroll_lines;
   if n <> 1 or v <> 210500 then raise exception 'FAIL: employee sees % payslips (net %)', n, v; end if;
 end $$;
+\echo 'TEST staff can find the period of their own approved payslip, and nothing else'
+do $$ declare n int; begin
+  select count(*) into n from public.my_payslip_runs();
+  if n <> 1 then raise exception 'FAIL: employee should see 1 approved run, saw %', n; end if;
+end $$;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
+do $$ declare n int; begin
+  select count(*) into n from public.my_payslip_runs();
+  if n > 1 then raise exception 'FAIL: manager sees % runs', n; end if;
+end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
 do $$ declare n int; begin
   select count(*) into n from public.payroll_lines where employee_id <> current_setting('t.chidi')::uuid;

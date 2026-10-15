@@ -160,13 +160,14 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     rows(supabase.from("inbox_requests").select("*").eq("org_id", orgId).order("at", { ascending: false }).limit(100)),
   ]);
   const since = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
-  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, holidayRows, onboardingRows, attendanceRows, workStartRows, careersRows, payrollConfigRows, rentRows, lineRows, recordRows, bankRows] = await Promise.all([
+  const [org, comp, leaveRows, goalRows, reviewRows, payrollRows, myRunRows, holidayRows, onboardingRows, attendanceRows, workStartRows, careersRows, payrollConfigRows, rentRows, lineRows, recordRows, bankRows] = await Promise.all([
     rows(supabase.from("organizations").select("name, leave_allowance_days").eq("id", orgId).limit(1)),
     optionalRows(supabase.from("employee_compensation").select("employee_id, monthly_gross").eq("org_id", orgId)), // HR admins only (RLS)
     optionalRows(supabase.from("leave_requests").select("*").eq("org_id", orgId).order("start_date", { ascending: false }).limit(500)),
     optionalRows(supabase.from("goals").select("*").eq("org_id", orgId).order("due_date")),
     optionalRows(supabase.from("reviews").select("*").eq("org_id", orgId)),
     optionalRows(supabase.from("payroll_runs").select("*").eq("org_id", orgId).order("period", { ascending: false })),
+    optionalRows(supabase.rpc("my_payslip_runs") as unknown as PromiseLike<{ data: Row[] | null; error: { message: string; code?: string } | null }>), // staff: approved runs holding their own payslip
     optionalRows(supabase.from("company_holidays").select("id, date, name").eq("org_id", orgId).order("date")),
     optionalRows(supabase.from("onboarding_tasks").select("*").eq("org_id", orgId).order("position")), // HR, managers, and the new hire (RLS)
     optionalRows(supabase.from("attendance").select("*").eq("org_id", orgId).gte("date", since).order("date", { ascending: false }).limit(5000)), // HR, managers, own (RLS)
@@ -178,6 +179,12 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
     optionalRows(supabase.from("employee_records").select("employee_id, personal, job").eq("org_id", orgId)), // HR; staff own
     optionalRows(supabase.from("employee_bank").select("employee_id, data").eq("org_id", orgId)), // HR; staff own (read)
   ]);
+
+  // Staff can't read payroll runs, so add just the id and period of their own approved runs (no company totals).
+  const runRows: Row[] = [
+    ...payrollRows,
+    ...myRunRows.filter((m) => !payrollRows.some((r) => r.id === m.id)).map((m): Row => ({ id: m.id, period: m.period, status: "Approved" })),
+  ];
 
   const notesBy = groupBy<Note>(notes, "candidate_id", (r) => ({ id: s(r.id), text: s(r.text), author: s(r.author_name), createdAt: s(r.created_at) }));
   const interviewsBy = groupBy<Interview>(interviews, "candidate_id", (r) => ({
@@ -235,7 +242,7 @@ export async function loadState(supabase: SupabaseClient, orgId: string): Promis
       reviewerName: s(r.reviewer_name),
       updatedAt: s(r.updated_at),
     })),
-    payrollRuns: payrollRows.map((r) => ({
+    payrollRuns: runRows.map((r) => ({
       id: s(r.id),
       period: s(r.period),
       status: s(r.status) as PayrollRun["status"],
