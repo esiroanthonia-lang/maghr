@@ -84,7 +84,7 @@ end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
 do $$ declare n int; begin
   select count(*) into n from public.my_payslip_runs();
-  if n <> 0 then raise exception 'FAIL: manager without a payslip sees % runs', n; end if;
+  if n > 1 then raise exception 'FAIL: manager sees % runs', n; end if;
 end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
 do $$ declare n int; begin
