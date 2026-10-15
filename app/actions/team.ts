@@ -68,6 +68,69 @@ export async function changeRole(userId: string, role: Role): Promise<TeamResult
   }
 }
 
+export async function requestManagerAccess(): Promise<TeamResult> {
+  try {
+    const { supabase, info } = await requireWorkspace();
+    if (info.me.role === "hr_admin") return { ok: false, error: "HR admins already have performance access." };
+
+    const { data: employee, error: employeeError } = await supabase
+      .from("employees")
+      .select("id, name")
+      .eq("org_id", info.orgId)
+      .eq("email", info.me.email)
+      .maybeSingle();
+    if (employeeError || !employee) return { ok: false, error: "Ask HR to link your work email to your employee profile first." };
+
+    const { data: employees, error: reportsError } = await supabase
+      .from("employees")
+      .select("manager_name, status")
+      .eq("org_id", info.orgId);
+    if (reportsError) return { ok: false, error: "Couldn’t check your assigned reports." };
+    const hasReports = (employees ?? []).some((report) =>
+      report.status !== "Exited" && report.manager_name.trim().toLowerCase() === String(employee.name).trim().toLowerCase()
+    );
+    if (!hasReports) return { ok: false, error: "Ask HR to assign at least one employee to you as their manager before requesting access." };
+
+    const { data: pending } = await supabase
+      .from("manager_access_requests")
+      .select("id")
+      .eq("org_id", info.orgId)
+      .eq("user_id", info.me.userId)
+      .eq("status", "Pending")
+      .maybeSingle();
+    if (pending) return { ok: true };
+
+    const { error } = await supabase.from("manager_access_requests").insert({
+      org_id: info.orgId,
+      user_id: info.me.userId,
+      employee_id: employee.id,
+    });
+    if (error) return { ok: false, error: "Couldn’t send the request. Please try again or ask HR to update your role." };
+    revalidatePath("/settings");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
+}
+
+export async function decideManagerAccessRequest(requestId: string, approve: boolean): Promise<TeamResult> {
+  try {
+    const { supabase, info } = await adminSession();
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) return { ok: false, error: "That request wasn’t found." };
+    const { error } = await supabase.rpc("decide_manager_access_request", {
+      p_org_id: info.orgId,
+      p_request_id: requestId,
+      p_approve: approve,
+    });
+    if (error) return { ok: false, error: "Couldn’t update manager access. Make sure the person still has direct reports assigned." };
+    revalidatePath("/settings");
+    revalidatePath("/performance");
+    return { ok: true };
+  } catch (e) {
+    return guard(e);
+  }
+}
+
 export async function removeMember(userId: string): Promise<TeamResult> {
   try {
     const { supabase, info } = await adminSession();

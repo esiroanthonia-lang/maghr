@@ -7,7 +7,7 @@ import { lagosDate, lagosTime } from "@/lib/attendance";
 import { formatNaira, holidaysForState, leaveBalance, periodLabel, workingDays } from "@/lib/people";
 import { myEmployeeEmail } from "@/lib/workspace";
 import { LEAVE_TYPES, type LeaveType } from "@/lib/types";
-import { Badge, EmptyState, PageHeader, Panel, StatCard } from "@/components/ui/bits";
+import { Avatar, Badge, EmptyState, PageHeader, Panel, StatCard } from "@/components/ui/bits";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
@@ -48,6 +48,9 @@ export function EmployeePortalPage({ section }: { section: Section }) {
   const approved = new Map(state.payrollRuns.filter((r) => r.status === "Approved").map((r) => [r.id, r]));
   const slips = state.payrollLines.filter((l) => l.employeeId === me.id && approved.has(l.runId)).sort((a, b) => approved.get(b.runId)!.period.localeCompare(approved.get(a.runId)!.period));
   const reviews = [...state.reviews].filter((r) => r.employeeId === me.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const employeeGoals = state.goals.filter((goal) => goal.ownerName.trim().toLowerCase() === me.name.trim().toLowerCase()).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const latestReview = reviews[0] ?? null;
+  const goalProgress = employeeGoals.length ? Math.round(employeeGoals.reduce((total, goal) => total + goal.progress, 0) / employeeGoals.length) : null;
   const today = now ? lagosDate(now.toISOString()) : todayIso;
   const holidays = start && end ? holidaysForState(state, start, end) : new Map<string, string>();
   const requestedDays = start && end ? workingDays(start, end, holidays) : 0;
@@ -101,6 +104,34 @@ export function EmployeePortalPage({ section }: { section: Section }) {
         {slips.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Pay period</th><th>Gross</th><th>Net pay</th><th>Status</th></tr></thead><tbody>{slips.map((l) => <tr key={l.id}><td>{periodLabel(approved.get(l.runId)!.period)}</td><td>{formatNaira(Math.round(l.gross))}</td><td><strong>{formatNaira(Math.round(l.net))}</strong></td><td><Badge tone="ok">Approved</Badge></td></tr>)}</tbody></table></div> : <EmptyState title="No payslips yet">Your payslips appear here after HR approves a payroll run.</EmptyState>}
       </Panel> : null}
       {section === "performance" ? <>
+        <div className="employee-performance-dashboard">
+          <Panel title="My profile" subtitle="Your role and department">
+            <div className="employee-performance-profile">
+              <Avatar name={me.name} large />
+              <div><strong>{me.name}</strong><span>{me.jobTitle}</span><small>{me.department}</small><small>{me.managerName ? `Manager: ${me.managerName}` : "Manager not assigned"}</small></div>
+            </div>
+          </Panel>
+          <Panel title="Performance overview" subtitle={latestReview ? `Latest review · ${latestReview.cycle}` : "Your review history"}>
+            <div className="employee-performance-score">
+              <div className="employee-rating-ring" style={{ background: `conic-gradient(var(--accent) ${(latestReview?.rating ?? 0) * 20}%, var(--line) 0)` }}><div><strong>{latestReview?.rating ?? "—"}{latestReview?.rating ? <small>/5</small> : null}</strong><span>{latestReview?.rating ? "Overall rating" : "Not rated"}</span></div></div>
+              <div className="employee-performance-facts">
+                <div><span>Review status</span><strong>{latestReview?.status ?? "Not started"}</strong></div>
+                <div><span>Reviewer</span><strong>{latestReview?.reviewerName || "Not assigned"}</strong></div>
+                <div><span>Review cycles</span><strong>{reviews.length}</strong></div>
+              </div>
+            </div>
+          </Panel>
+          <Panel title="My goals" subtitle={`${employeeGoals.length} assigned ${pluralise(employeeGoals.length, "goal")}`}>
+            {employeeGoals.length ? <ul className="employee-goal-summary">{employeeGoals.map((goal) => <li key={goal.id}><div><strong>{goal.title}</strong><span>Due {date(goal.dueDate)}</span></div><strong>{goal.progress}%</strong><div className="bar goal-bar"><i style={{ width: `${goal.progress}%` }} /></div></li>)}</ul> : <EmptyState title="No individual goals yet">Goals assigned to you will appear here.</EmptyState>}
+          </Panel>
+          <Panel title="Goal progress" subtitle="Across your assigned goals">
+            <div className="employee-goal-progress">
+              <strong>{goalProgress === null ? "—" : `${goalProgress}%`}</strong>
+              <span>{employeeGoals.filter((goal) => goal.progress >= 100).length} of {employeeGoals.length} goals completed</span>
+              <div className="bar goal-bar"><i style={{ width: `${goalProgress ?? 0}%` }} /></div>
+            </div>
+          </Panel>
+        </div>
         <Panel title="My reviews" subtitle="Complete your self-appraisal when your manager opens a review cycle.">
           {reviews.length ? <ul className="self-review-list">{reviews.map((r) => <li key={r.id} className="self-review-item">
             <div className="self-review-heading"><div className="person-info"><strong>{r.cycle}</strong><span>{r.reviewerName ? `Reviewer: ${r.reviewerName}` : "No reviewer assigned"}{r.rating ? ` · ${r.rating}/5` : ""}</span></div><Badge tone={r.status === "Completed" ? "ok" : r.status === "Manager review" ? "info" : "neutral"}>{r.status}</Badge></div>
@@ -112,8 +143,8 @@ export function EmployeePortalPage({ section }: { section: Section }) {
             {r.status === "Completed" && r.summary ? <div className="self-review-copy manager-feedback"><strong>Manager feedback</strong><p>{r.summary}</p></div> : null}
           </li>)}</ul> : <EmptyState title="No review started yet">Your manager will open a review cycle before you can submit a self-appraisal.</EmptyState>}
         </Panel>
-        <Panel title="Company goals" subtitle="Shared priorities and progress">
-          {state.goals.length ? <ul className="goal-list">{state.goals.map((g) => <li key={g.id} className="goal"><div className="goal-main"><strong>{g.title}</strong><span>{g.ownerName} · due {date(g.dueDate)}</span><div className="bar goal-bar" aria-label={`${g.progress}% complete`}><i style={{ width: `${g.progress}%` }} /></div></div><strong>{g.progress}%</strong></li>)}</ul> : <EmptyState title="No company goals published yet">Check back when your team shares its priorities.</EmptyState>}
+        <Panel title="Shared team goals" subtitle="Department and company priorities">
+          {state.goals.length ? <ul className="goal-list">{state.goals.map((g) => <li key={g.id} className="goal"><div className="goal-main"><strong>{g.title}</strong><span>{g.ownerName} · due {date(g.dueDate)}</span><div className="bar goal-bar" aria-label={`${g.progress}% complete`}><i style={{ width: `${g.progress}%` }} /></div></div><strong>{g.progress}%</strong></li>)}</ul> : <EmptyState title="No team goals published yet">Shared team goals will appear here when they’re published.</EmptyState>}
         </Panel>
       </> : null}
     </>

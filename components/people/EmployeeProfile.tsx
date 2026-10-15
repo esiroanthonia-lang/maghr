@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { hoursWorked, lagosDate, lagosTime, lastDays } from "@/lib/attendance";
 import { ageOn, completeness, emptyRecord, EMPTY_BANK, mask, missingItems, type BankDetails } from "@/lib/employee-record";
 import { formatDate, pluralise } from "@/lib/format";
@@ -19,6 +19,7 @@ import { usePeople } from "./usePeople";
 import { myEmployeeEmail } from "@/lib/workspace";
 import { EmployeeDocuments } from "./EmployeeDocuments";
 import { EmployeeLetters } from "./EmployeeLetters";
+import { requestManagerAccess } from "@/app/actions/team";
 
 const statusTone = (s: EmployeeStatus) => (s === "Active" ? "ok" : s === "Onboarding" ? "info" : "neutral");
 const d = (iso: string) => (iso ? formatDate(`${iso}T12:00:00Z`) : "—");
@@ -87,6 +88,9 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
   const [exitChecklistDraft, setExitChecklistDraft] = useState<string[]>([]);
   const [probationAction, setProbationAction] = useState<"extend" | "confirm" | null>(null);
   const [probationDraft, setProbationDraft] = useState("");
+  const [managerRequestChecked, setManagerRequestChecked] = useState(false);
+  const [managerRequestSent, setManagerRequestSent] = useState(false);
+  const [managerRequestBusy, startManagerRequest] = useTransition();
 
   const e = state.employees.find((x) => x.id === employeeId);
   if (!e) {
@@ -108,7 +112,7 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
   const pct = completeness(rec, bank, { includeBank: isAdmin });
   const missing = missingItems(rec, bank, { includeBank: isAdmin });
   const manager = state.employees.find((x) => x.name === e.managerName);
-  const reports = state.employees.filter((x) => x.managerName === e.name && x.status !== "Exited");
+  const reports = state.employees.filter((x) => x.managerName.trim().toLowerCase() === e.name.trim().toLowerCase() && x.status !== "Exited");
   const balance = year ? leaveBalance(state, e.id, year) : null;
   const leave = state.leave.filter((l) => l.employeeId === e.id).sort((a, b) => b.startDate.localeCompare(a.startDate));
   const reviews = [...state.reviews].filter((r) => r.employeeId === e.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -262,6 +266,23 @@ export function EmployeeProfile({ employeeId }: { employeeId: string }) {
               ]}
             />
           </Section>
+          {isSelf ? <Section title="Manager access">
+            {role === "manager" ? <p className="stat-foot" style={{ margin: 0 }}>Manager access is active. You can open Performance to review your assigned direct reports.</p> : reports.length === 0 ? <p className="stat-foot" style={{ margin: 0 }}>No direct reports are linked to your profile yet. Ask HR to assign you as manager on their employee profiles first.</p> : managerRequestSent ? <p className="stat-foot" role="status" style={{ margin: 0 }}>Your manager access request is with HR. You’ll get access after it is approved.</p> : <form onSubmit={(event) => {
+              event.preventDefault();
+              startManagerRequest(async () => {
+                const result = await requestManagerAccess();
+                if (!result.ok) toast(result.error ?? "Couldn’t send your request.");
+                else {
+                  setManagerRequestSent(true);
+                  toast("Your request was sent to HR.");
+                }
+              });
+            }}>
+              <p className="stat-foot" style={{ margin: "0 0 12px" }}>Your profile lists {reports.length} direct {reports.length === 1 ? "report" : "reports"}. Ask HR to approve your performance review access.</p>
+              <label className="inline-check"><input type="checkbox" checked={managerRequestChecked} onChange={(event) => setManagerRequestChecked(event.target.checked)} /> I manage these people</label>
+              <div className="modal-actions"><button className="btn primary" disabled={!managerRequestChecked || managerRequestBusy}>Request HR approval</button></div>
+            </form>}
+          </Section> : null}
           {hasRecord ? (
             <Section title="In an emergency">
               <Facts

@@ -9,6 +9,7 @@ import { Field } from "../ui/Field";
 import { Icon } from "../ui/Icon";
 import { Modal } from "../ui/Modal";
 import { useToast } from "../ui/Toast";
+import { myEmployeeEmail } from "@/lib/workspace";
 import { usePeople } from "./usePeople";
 
 function GoalForm({ employees, initialDepartment, onSubmit, onCancel }: { employees: ReturnType<typeof usePeople>["state"]["employees"]; initialDepartment?: Department; onSubmit: (g: GoalInput) => void; onCancel: () => void }) {
@@ -67,14 +68,16 @@ function GoalForm({ employees, initialDepartment, onSubmit, onCancel }: { employ
 }
 
 export function PerformanceView() {
-  const { state, act, can, now, todayIso, workspace } = usePeople();
+  const { state, act, can, now, todayIso, workspace, role } = usePeople();
   const toast = useToast();
   const [showGoal, setShowGoal] = useState(false);
   const [section, setSection] = useState<"goals" | "reviews">("goals");
   const [departmentFilter, setDepartmentFilter] = useState<Department | "all">(() => {
+    if (role === "manager") return "all";
     const activeEmployees = state.employees.filter((employee) => employee.status === "Active");
-    const signedInEmployee = workspace.mode === "live"
-      ? activeEmployees.find((employee) => employee.email.toLowerCase() === workspace.me.email.toLowerCase())
+    const ownEmail = myEmployeeEmail(workspace, role);
+    const signedInEmployee = ownEmail
+      ? activeEmployees.find((employee) => employee.email.trim().toLowerCase() === ownEmail.trim().toLowerCase())
       : undefined;
     return signedInEmployee?.department ?? activeEmployees[0]?.department ?? "all";
   });
@@ -84,13 +87,26 @@ export function PerformanceView() {
   const [editing, setEditing] = useState<{ employeeId: string; employeeName: string; review?: Review } | null>(null);
   const cycle = now ? `Q${Math.floor(now.getUTCMonth() / 3) + 1} ${now.getUTCFullYear()}` : null;
   const people = state.employees.filter((e) => e.status === "Active");
-  const departments = Array.from(new Set(people.map((employee) => employee.department))).sort((a, b) => a.localeCompare(b));
-  const departmentPeople = people.filter((employee) => departmentFilter === "all" || employee.department === departmentFilter);
+  const isManager = role === "manager";
+  const ownEmail = myEmployeeEmail(workspace, role);
+  const managerProfile = isManager && ownEmail
+    ? people.find((employee) => employee.email.trim().toLowerCase() === ownEmail.trim().toLowerCase())
+    : undefined;
+  const managedPeople = isManager && managerProfile
+    ? people.filter((employee) => employee.managerName.trim().toLowerCase() === managerProfile.name.trim().toLowerCase())
+    : [];
+  const scopedPeople = isManager ? managedPeople : people;
+  const departments = Array.from(new Set(scopedPeople.map((employee) => employee.department))).sort((a, b) => a.localeCompare(b));
+  const departmentPeople = scopedPeople.filter((employee) => departmentFilter === "all" || employee.department === departmentFilter);
   const scopedEmployeeIds = new Set(departmentPeople.map((employee) => employee.id));
   const goalDepartment = (goal: (typeof state.goals)[number]): Department | null => goal.department === "Company"
     ? state.employees.find((employee) => employee.name === goal.ownerName)?.department ?? null
     : goal.department;
-  const departmentGoals = state.goals.filter((goal) => departmentFilter === "all" || goalDepartment(goal) === departmentFilter);
+  const managedNames = new Set(managedPeople.map((employee) => employee.name.trim().toLowerCase()));
+  const departmentGoals = state.goals.filter((goal) => {
+    if (isManager && !managedNames.has(goal.ownerName.trim().toLowerCase())) return false;
+    return departmentFilter === "all" || goalDepartment(goal) === departmentFilter;
+  });
   const cycleReviews = cycle ? state.reviews.filter((r) => r.cycle === cycle) : [];
   const scopedReviews = state.reviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
   const scopedCycleReviews = cycleReviews.filter((review) => scopedEmployeeIds.has(review.employeeId));
@@ -100,7 +116,7 @@ export function PerformanceView() {
   const completionRate = departmentPeople.length ? Math.round((completed / departmentPeople.length) * 100) : 0;
   const reportDepartments = departmentFilter === "all" ? departments : [departmentFilter];
   const departmentRatings = reportDepartments.map((department) => {
-    const ids = new Set(people.filter((employee) => employee.department === department).map((employee) => employee.id));
+    const ids = new Set(scopedPeople.filter((employee) => employee.department === department).map((employee) => employee.id));
     const ratings = cycleReviews.filter((review) => ids.has(review.employeeId) && review.status === "Completed" && review.rating !== null).map((review) => review.rating as number);
     return { department, average: ratings.length ? ratings.reduce((total, rating) => total + rating, 0) / ratings.length : null };
   });
@@ -146,7 +162,7 @@ export function PerformanceView() {
       <PageHeader
         eyebrow="GROW WITH PURPOSE"
         title="Performance"
-        intro="Track goal progress, review completion, and ratings by department."
+        intro={isManager ? "Review progress, goals, and ratings for your direct reports." : "Track goal progress, review completion, and ratings by department."}
         actions={
           can("goal/add") ? (
             <button type="button" className="btn primary" onClick={() => setShowGoal(true)}>
@@ -155,15 +171,15 @@ export function PerformanceView() {
           ) : null
         }
       />
-      <h2 className="performance-admin-heading">Department performance overview</h2>
-      <Panel title="Departments" subtitle="Choose a department to see its people, goals, and review progress.">
+      <h2 className="performance-admin-heading">{isManager ? "My team performance" : "Department performance overview"}</h2>
+      <Panel title={isManager ? "Your team" : "Departments"} subtitle={isManager ? "Choose one of your direct report departments, or view your whole team." : "Choose a department to see its people, goals, and review progress."}>
         <div className="performance-department-picker" aria-label="Filter performance by department">
-          <button type="button" className={`btn small ${departmentFilter === "all" ? "primary" : ""}`} aria-pressed={departmentFilter === "all"} onClick={() => setDepartmentFilter("all")}>All departments</button>
-          {departments.map((department) => <button key={department} type="button" className={`btn small ${departmentFilter === department ? "primary" : ""}`} aria-pressed={departmentFilter === department} onClick={() => setDepartmentFilter(department)}>{department}<span className="count">{people.filter((employee) => employee.department === department).length}</span></button>)}
+          <button type="button" className={`btn small ${departmentFilter === "all" ? "primary" : ""}`} aria-pressed={departmentFilter === "all"} onClick={() => setDepartmentFilter("all")}>{isManager ? `My reports (${managedPeople.length})` : "All departments"}</button>
+          {departments.map((department) => <button key={department} type="button" className={`btn small ${departmentFilter === department ? "primary" : ""}`} aria-pressed={departmentFilter === department} onClick={() => setDepartmentFilter(department)}>{department}<span className="count">{scopedPeople.filter((employee) => employee.department === department).length}</span></button>)}
         </div>
         <div className="performance-roster">
-          <strong>{departmentFilter === "all" ? "People across departments" : `People in ${departmentFilter}`}</strong>
-          {departmentPeople.length ? <ul>{departmentPeople.map((employee) => <li key={employee.id}><Avatar name={employee.name} /><span><strong>{employee.name}</strong><small>{employee.jobTitle}</small></span></li>)}</ul> : <p className="stat-foot">No active employees in this department yet.</p>}
+          <strong>{departmentFilter === "all" ? (isManager ? "Your direct reports" : "People across departments") : `People in ${departmentFilter}`}</strong>
+          {departmentPeople.length ? <ul>{departmentPeople.map((employee) => <li key={employee.id}><Avatar name={employee.name} /><span><strong>{employee.name}</strong><small>{employee.jobTitle}</small></span></li>)}</ul> : <p className="stat-foot">{isManager ? "No direct reports are linked to your account yet. Ask HR to assign you as the manager on their employee profiles." : "No active employees in this department yet."}</p>}
         </div>
       </Panel>
       <div className="performance-admin-dashboard">
@@ -271,7 +287,7 @@ export function PerformanceView() {
 
       {showGoal ? (
         <Modal title="New goal" onClose={() => setShowGoal(false)}>
-          <GoalForm employees={people} initialDepartment={departmentFilter === "all" ? undefined : departmentFilter}
+          <GoalForm employees={scopedPeople} initialDepartment={departmentFilter === "all" ? undefined : departmentFilter}
             onCancel={() => setShowGoal(false)}
             onSubmit={(g) => {
               act({ type: "goal/add", input: g });

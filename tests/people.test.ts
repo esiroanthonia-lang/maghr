@@ -60,7 +60,7 @@ describe("employees", () => {
     const next = run(s, { type: "employee/exit", id: "x", at, employeeId: "emp-002", date: "2026-10-31" });
     assert.equal(next.employees.find((e) => e.id === "emp-002")!.status, "Exited");
     assert.equal(payrollTotals(next).count, before.count - 1);
-    assert.equal(run(next, { type: "employee/exit", id: "y", at, employeeId: "emp-002", date: "2026-11-30" }), next);
+    assert.equal(run(next, { type: "employee/exit", id: "y", at, employeeId: "emp-002", date: "2026-10-31" }), next);
   });
 
   it("edits keep an exited employee exited", () => {

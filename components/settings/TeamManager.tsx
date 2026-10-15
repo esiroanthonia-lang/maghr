@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { changeRole, inviteMember, removeMember, revokeInvite } from "@/app/actions/team";
+import { changeRole, decideManagerAccessRequest, inviteMember, removeMember, revokeInvite } from "@/app/actions/team";
 import { ROLE_LABELS, ROLES, type Role } from "@/lib/workspace";
 import { Avatar, Badge, Notice, Panel, RelativeTime } from "../ui/bits";
 import { useToast } from "../ui/Toast";
@@ -11,6 +11,14 @@ export interface Member {
   name: string;
   email: string;
   role: Role;
+}
+export interface ManagerAccessRequest {
+  id: string;
+  employeeId: string;
+  name: string;
+  email: string;
+  requestedAt: string;
+  directReports: number;
 }
 export interface PendingInvite {
   id: string;
@@ -23,11 +31,11 @@ export interface PendingInvite {
 const ROLE_HELP: Record<Role, string> = {
   hr_admin: "Everything, including team, settings and audit log",
   recruiter: "Jobs, candidates, interviews and offers",
-  manager: "View hiring pipelines and add notes",
+  manager: "Review performance for assigned direct reports",
   employee: "Their own record (self-service coming next)",
 };
 
-export function TeamManager({ members, invites, meId, isAdmin }: { members: Member[]; invites: PendingInvite[]; meId: string; isAdmin: boolean }) {
+export function TeamManager({ members, invites, managerRequests, meId, isAdmin }: { members: Member[]; invites: PendingInvite[]; managerRequests: ManagerAccessRequest[]; meId: string; isAdmin: boolean }) {
   const toast = useToast();
   const [busy, start] = useTransition();
   const [email, setEmail] = useState("");
@@ -94,6 +102,14 @@ export function TeamManager({ members, invites, meId, isAdmin }: { members: Memb
       ) : (
         <Notice>Only HR admins can invite people or change roles.</Notice>
       )}
+
+      {isAdmin ? <Panel title="Manager access requests" subtitle="Approve access only for people with direct reports assigned to their profile.">
+        {managerRequests.length ? <ul className="list">{managerRequests.map((request) => <li key={request.id} className="list-row">
+          <Avatar name={request.name || request.email} />
+          <div className="person-info"><strong>{request.name || request.email}</strong><span>{request.email} · {request.directReports} direct {request.directReports === 1 ? "report" : "reports"} · requested <RelativeTime iso={request.requestedAt} /></span></div>
+          <div className="button-row"><button type="button" className="btn small primary" disabled={busy} onClick={() => run(decideManagerAccessRequest(request.id, true), "Manager performance access approved.")}>Approve</button><button type="button" className="btn small" disabled={busy} onClick={() => run(decideManagerAccessRequest(request.id, false), "Manager access request declined.")}>Decline</button></div>
+        </li>)}</ul> : <p className="panel-body" style={{ margin: 0 }}>No pending manager access requests.</p>}
+      </Panel> : null}
 
       <Panel title="Team" subtitle={`${members.length} ${members.length === 1 ? "person" : "people"} in this workspace`}>
         <ul className="list">

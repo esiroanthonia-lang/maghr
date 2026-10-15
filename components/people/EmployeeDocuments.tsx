@@ -15,16 +15,13 @@ export function EmployeeDocuments({ employeeId }: { employeeId: string }) {
   const form = useRef<HTMLFormElement>(null);
   const [documents, setDocuments] = useState<EmployeeDocument[]>([]);
   const [category, setCategory] = useState<EmployeeDocument["category"]>("Contract");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(workspace.mode === "live");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
-    if (workspace.mode === "demo") {
-      setLoading(false);
-      return () => { active = false; };
-    }
+    if (workspace.mode === "demo") return () => { active = false; };
     listEmployeeDocuments(employeeId).then((result) => {
       if (!active) return;
       if (result.ok) setDocuments(result.data);
