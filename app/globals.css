@@ -1270,3 +1270,19 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .employee-performance-dashboard { gap: 20px; align-items: stretch; }
 .employee-performance-dashboard > .panel { margin-top: 0; }
 .employee-performance-profile, .employee-performance-score, .employee-goal-progress { padding: 20px 22px; }
+/* First-run setup checklist (HR dashboard, real workspaces) */
+.setup { background: var(--surface, #fff); border: 1px solid var(--line, #e5e7eb); border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; }
+.setup-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 14px; }
+.setup-head h2 { margin: 0; font-size: 1.05rem; }
+.setup-head p { margin: 2px 0 0; color: var(--muted, #6b7280); font-size: .85rem; }
+.setup-bar { width: 200px; height: 6px; border-radius: 99px; background: var(--line, #e5e7eb); overflow: hidden; }
+.setup-bar b { display: block; height: 100%; background: var(--accent, #2563eb); border-radius: 99px; }
+.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.setup-steps li { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line, #e5e7eb); }
+.setup-steps li > div { flex: 1; min-width: 0; }
+.setup-steps p { margin: 2px 0 0; color: var(--muted, #6b7280); font-size: .85rem; }
+.setup-mark { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line, #cbd5e1); display: grid; place-items: center; }
+.setup-steps li.next .setup-mark { border-color: var(--accent, #2563eb); }
+.setup-steps li.done .setup-mark { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); color: #fff; }
+.setup-steps li.done strong { color: var(--muted, #6b7280); font-weight: 500; }
+.setup-done { color: var(--muted, #6b7280); font-size: .85rem; }

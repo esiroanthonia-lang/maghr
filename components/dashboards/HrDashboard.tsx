@@ -7,6 +7,7 @@ import { formatNaira, headcountByDepartment, onLeaveOn, onboardingProgress, over
 import { useDemoStore, useNow } from "@/lib/store";
 import { Avatar, Badge, EmptyState, Panel } from "../ui/bits";
 import { Icon } from "../ui/Icon";
+import { SetupChecklist } from "./SetupChecklist";
 
 /** HR admin home: the state of the workforce, and what needs a decision. */
 export function HrDashboard() {
@@ -102,6 +103,8 @@ export function HrDashboard() {
           </ul>
         </div>
       </section>
+
+      <SetupChecklist />
 
       <div className="dashboard-grid">
         <div>
