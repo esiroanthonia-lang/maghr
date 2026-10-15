@@ -6,6 +6,7 @@ import { DemoStoreProvider } from "@/lib/store";
 import type { WorkspaceInfo } from "@/lib/workspace";
 import { ToastProvider } from "../ui/Toast";
 import { DialogHost } from "./DialogHost";
+import { IdleSignOut } from "./IdleSignOut";
 import { RoleGuard } from "./RoleGuard";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -30,6 +31,7 @@ export function AppShell({ children, initialState, workspace }: { children: Reac
               {live ? null : <p className="demo-banner">MEMBRA · DEMO WORKSPACE · SYNTHETIC DATA · CHANGES RESET ON REFRESH</p>}
             </div>
           </div>
+          {live ? <IdleSignOut /> : null}
           <DialogHost />
         </UiProvider>
       </DemoStoreProvider>
