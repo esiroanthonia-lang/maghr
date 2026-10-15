@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ACTIVE_COOKIE, STARTED_COOKIE, sessionExpired, shouldTouch } from "../session-timeout";
 import { SUPABASE_KEY, SUPABASE_URL, isSupabaseConfigured } from "./config";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth", "/invite", "/careers"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth", "/invite", "/careers"];
 
 /** Refreshes the Supabase session cookie and sends signed-out visitors to /login. */
 export async function updateSession(request: NextRequest) {

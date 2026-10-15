@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { acceptInvite, createCompany, signIn, signUp, type FormState } from "@/app/actions/auth";
+import { acceptInvite, createCompany, requestPasswordReset, signIn, signUp, updatePassword, type FormState } from "@/app/actions/auth";
+import { PasswordInput } from "./PasswordInput";
 
 const initial: FormState = {};
 
@@ -35,8 +36,13 @@ export function LoginForm({ next, linkError, expired }: { next: string; linkErro
         <input id="email" name="email" type="email" autoComplete="email" required autoFocus />
       </div>
       <div className="field">
-        <label htmlFor="password">Password</label>
-        <input id="password" name="password" type="password" autoComplete="current-password" required />
+        <div className="label-row">
+          <label htmlFor="password">Password</label>
+          <Link href="/forgot-password" className="auth-small-link">
+            Forgot password?
+          </Link>
+        </div>
+        <PasswordInput id="password" name="password" autoComplete="current-password" required />
       </div>
       <button className="btn primary auth-submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
@@ -65,7 +71,7 @@ export function SignupForm({ next }: { next: string }) {
       </div>
       <div className="field">
         <label htmlFor="password">Password</label>
-        <input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required aria-describedby="pw-hint" />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} required aria-describedby="pw-hint" />
         <span className="hint" id="pw-hint">At least 10 characters.</span>
       </div>
       <button className="btn primary auth-submit" disabled={pending}>
@@ -111,6 +117,47 @@ export function InviteForm({ token, defaultName }: { token: string; defaultName:
       </div>
       <button className="btn primary auth-submit" disabled={pending}>
         {pending ? "Joining…" : "Join workspace"}
+      </button>
+    </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [state, action, pending] = useActionState(requestPasswordReset, initial);
+  if (state.message) return <Feedback state={state} />;
+  return (
+    <form action={action} className="auth-form">
+      <Feedback state={state} />
+      <div className="field">
+        <label htmlFor="email">Work email</label>
+        <input id="email" name="email" type="email" autoComplete="email" required autoFocus />
+      </div>
+      <button className="btn primary auth-submit" disabled={pending}>
+        {pending ? "Sending…" : "Send reset link"}
+      </button>
+      <p className="auth-alt">
+        Remembered it? <Link href="/login">Sign in</Link>
+      </p>
+    </form>
+  );
+}
+
+export function NewPasswordForm() {
+  const [state, action, pending] = useActionState(updatePassword, initial);
+  return (
+    <form action={action} className="auth-form">
+      <Feedback state={state} />
+      <div className="field">
+        <label htmlFor="password">New password</label>
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} required aria-describedby="pw-hint" autoFocus />
+        <span className="hint" id="pw-hint">At least 10 characters.</span>
+      </div>
+      <div className="field">
+        <label htmlFor="confirm">Type it again</label>
+        <PasswordInput id="confirm" name="confirm" autoComplete="new-password" minLength={10} required />
+      </div>
+      <button className="btn primary auth-submit" disabled={pending}>
+        {pending ? "Saving…" : "Save new password"}
       </button>
     </form>
   );

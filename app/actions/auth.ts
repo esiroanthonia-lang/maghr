@@ -69,6 +69,30 @@ export async function signUp(_prev: FormState, form: FormData): Promise<FormStat
   return { message: `Check ${email} for a confirmation link to finish creating your account.` };
 }
 
+/** Emails a reset link. Always says the same thing, so the form doesn't reveal who has an account. */
+export async function requestPasswordReset(_prev: FormState, form: FormData): Promise<FormState> {
+  if (!isSupabaseConfigured) return notConfigured();
+  const email = field(form, "email").toLowerCase();
+  if (!EMAIL.test(email)) return { error: "Enter a valid email address." };
+  const supabase = await createClient();
+  await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await siteUrl()}/auth/callback?next=/reset-password` });
+  return { message: `If ${email} has a Membra account, a reset link is on its way. It works once and expires after an hour.` };
+}
+
+/** Sets a new password for the person signed in through a reset link. */
+export async function updatePassword(_prev: FormState, form: FormData): Promise<FormState> {
+  if (!isSupabaseConfigured) return notConfigured();
+  const password = field(form, "password", 200);
+  if (password.length < 10) return { error: "Use a password of at least 10 characters." };
+  if (password !== field(form, "confirm", 200)) return { error: "The two passwords don’t match." };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return { error: "Your reset link has expired. Ask for a new one from the sign-in page." };
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: /different|same/i.test(error.message) ? "Choose a password you haven’t used before." : "Couldn’t save the new password. Please try again." };
+  redirect("/");
+}
+
 export async function signOut() {
   if (isSupabaseConfigured) {
     const supabase = await createClient();

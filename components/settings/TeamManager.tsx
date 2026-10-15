@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { changeRole, decideManagerAccessRequest, inviteMember, removeMember, revokeInvite } from "@/app/actions/team";
+import { changeRole, decideManagerAccessRequest, inviteMember, removeMember, revokeInvite, sendPasswordReset } from "@/app/actions/team";
 import { ROLE_LABELS, ROLES, type Role } from "@/lib/workspace";
 import { Avatar, Badge, Notice, Panel, RelativeTime } from "../ui/bits";
 import { useToast } from "../ui/Toast";
@@ -134,6 +134,17 @@ export function TeamManager({ members, invites, managerRequests, meId, isAdmin }
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    className="btn small"
+                    disabled={busy}
+                    title="Emails them a link to choose a new password. You never see their password."
+                    onClick={() => {
+                      if (window.confirm(`Email ${m.email} a link to reset their password?`)) run(sendPasswordReset(m.userId), `Reset link sent to ${m.email}.`);
+                    }}
+                  >
+                    Reset password
+                  </button>
                   <button
                     type="button"
                     className="btn small danger"
