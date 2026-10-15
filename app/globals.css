@@ -1286,3 +1286,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .setup-steps li.done .setup-mark { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); color: #fff; }
 .setup-steps li.done strong { color: var(--muted, #6b7280); font-weight: 500; }
 .setup-done { color: var(--muted, #6b7280); font-size: .85rem; }
+/* Employee shortcuts: keep titles on one line whatever the description length */
+.employee-shortcut { align-items: flex-start; }
+.employee-shortcut-arrow { margin-left: auto; }
