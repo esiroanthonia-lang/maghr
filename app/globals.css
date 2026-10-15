@@ -1335,3 +1335,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   .sidebar .nav a { min-width: 50px; padding: 7px 4px; }
   .sidebar .nav .nav-short { font-size: 10px; }
 }
+/* Account menu on the avatar: profile, settings and sign out on every screen size */
+.account { position: relative; }
+.avatar-btn { cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; padding: 0; }
+.avatar-btn:focus-visible { outline: none; box-shadow: var(--focus); }
+.account-panel { position: absolute; right: 0; top: calc(100% + 8px); width: 220px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-pop); z-index: 60; padding: 6px; animation: pop 0.16s var(--ease); }
+.account-who { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; display: grid; gap: 2px; }
+.account-who strong { font-size: 13px; color: var(--ink); }
+.account-who span { font-size: 12px; color: var(--muted); }
+.account-item { display: block; width: 100%; text-align: left; padding: 9px 10px; border-radius: 8px; font: inherit; font-size: 13.5px; color: var(--ink); background: none; border: 0; cursor: pointer; }
+.account-item:hover { background: var(--hover); }
+.account-signout { color: var(--red, #b42318); border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; margin-top: 4px; }

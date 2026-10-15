@@ -2,10 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import { pageTitle } from "@/lib/nav";
-import { initials } from "@/lib/format";
 import { DEMO_PERSONAS } from "@/lib/roles";
 import { useDemoStore } from "@/lib/store";
 import { ROLE_LABELS } from "@/lib/workspace";
+import { AccountMenu } from "./AccountMenu";
 import { GlobalSearch } from "./GlobalSearch";
 import { Notifications } from "./Notifications";
 import { ThemeToggle } from "./ThemeToggle";
@@ -32,14 +32,10 @@ export function Topbar() {
               <strong>{workspace.me.name}</strong>
               <span>{ROLE_LABELS[workspace.me.role]}</span>
             </div>
-            <div className="avatar" aria-hidden="true">
-              {initials(workspace.me.name)}
-            </div>
+            <AccountMenu name={workspace.me.name} roleLabel={ROLE_LABELS[workspace.me.role]} role={workspace.me.role} live />
           </>
         ) : (
-          <div className="avatar" title={`${persona?.name ?? "Demo user"} · ${ROLE_LABELS[role]} (demo)`} aria-label={`Viewing the demo as ${ROLE_LABELS[role]}`} role="img">
-            {persona ? initials(persona.name) : ROLE_LABELS[role].slice(0, 2).toUpperCase()}
-          </div>
+          <AccountMenu name={persona?.name ?? "Demo user"} roleLabel={`${ROLE_LABELS[role]} (demo)`} role={role} live={false} />
         )}
       </div>
     </header>
