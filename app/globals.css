@@ -1249,3 +1249,18 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   /* Collapsed menu: show just the "m" with its two people */
   .sidebar .brand-logo { width: 34px; height: 34px; object-fit: cover; object-position: left center; }
 }
+
+/* Fixes: performance overview spacing, and dashboards on phones */
+.performance-department-picker { padding: 18px 22px 0; }
+.performance-roster { margin: 18px 22px 22px; }
+.performance-department-bars { padding: 20px 22px; }
+.performance-completion { padding: 20px 22px; }
+.performance-top-list { padding: 4px 22px 8px; }
+.performance-admin-dashboard { gap: 20px; margin: 20px 0 20px; }
+.performance-admin-dashboard > .panel { margin-top: 0; }
+.performance-admin-dashboard .panel > p.stat-foot { margin: 0; padding: 0 22px 18px; }
+.dashboard-grid > * { min-width: 0; }
+@media (max-width: 1100px) { .dashboard-grid { grid-template-columns: minmax(0, 1fr); } }
+.data-table th, .data-table td { padding-left: 14px; padding-right: 14px; }
+/* Wide tables: drop the least important column on smaller laptops so Pay and Profile stay visible */
+@media (max-width: 1500px) { .data-table .col-extra { display: none; } }
