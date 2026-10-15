@@ -1234,3 +1234,18 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .employee-goal-progress > span { color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) { .employee-performance-dashboard { grid-template-columns: 1fr; } }
 @media (max-width: 480px) { .employee-performance-score { gap: 14px; } .employee-rating-ring { width: 96px; height: 96px; flex-basis: 96px; } .employee-rating-ring > div { width: 72px; height: 72px; } }
+
+/* Membra logo: white on dark surfaces, dark on light ones */
+.brand-logo { height: 34px; width: auto; display: block; }
+.brand-logo.ink { display: none; }
+.auth-page .brand-logo.white { display: none; }
+.auth-page .brand-logo.ink { display: block; }
+[data-theme="dark"] .auth-page .brand-logo.white { display: block; }
+[data-theme="dark"] .auth-page .brand-logo.ink { display: none; }
+[data-palette="clean"]:not([data-theme="dark"]) .sidebar .brand-logo.white { display: none; }
+[data-palette="clean"]:not([data-theme="dark"]) .sidebar .brand-logo.ink { display: block; }
+.auth-brand .brand-logo { height: 40px; }
+@media (max-width: 760px) {
+  /* Collapsed menu: show just the "m" with its two people */
+  .sidebar .brand-logo { width: 34px; height: 34px; object-fit: cover; object-position: left center; }
+}

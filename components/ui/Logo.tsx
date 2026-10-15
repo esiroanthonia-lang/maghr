@@ -12,14 +12,14 @@ export function LogoMark({ size = 34 }: { size?: number }) {
   );
 }
 
+/** The Membra logo. Two cut-outs, white and dark, so it reads on any theme; CSS picks the one that suits the surface. */
 export function Wordmark({ light = false }: { light?: boolean }) {
   return (
     <span className={`wordmark ${light ? "light" : ""}`}>
-      <LogoMark />
-      <span>
-        MagHR
-        <small>by MyJobMag</small>
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="brand-logo white" src="/brand/membra-white.png" alt="Membra" width={129} height={34} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="brand-logo ink" src="/brand/membra-ink.png" alt="" aria-hidden="true" width={129} height={34} />
     </span>
   );
 }
