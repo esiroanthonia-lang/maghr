@@ -14,6 +14,8 @@ import { useToast } from "@/components/ui/Toast";
 import { usePeople } from "./usePeople";
 import { ClockCard } from "./Attendance";
 import { EmployeeProfile } from "./EmployeeProfile";
+import { Modal } from "../ui/Modal";
+import { PayslipCard, printPayslip } from "./Payslip";
 
 type Section = "profile" | "leave" | "attendance" | "payslips" | "performance";
 const date = (value: string) => formatDate(`${value}T12:00:00Z`);
@@ -26,6 +28,7 @@ export function EmployeePortalPage({ section }: { section: Section }) {
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
+  const [slipId, setSlipId] = useState<string | null>(null);
   const email = myEmployeeEmail(workspace, role);
   const me = state.employees.find((e) => e.email.toLowerCase() === email);
   if (!me) return <Panel title="Your account is not linked yet"><EmptyState title="Ask HR to link your employee record">Your work email is {email}. HR can connect your account by adding that same email to the employee directory.</EmptyState></Panel>;
@@ -47,6 +50,7 @@ export function EmployeePortalPage({ section }: { section: Section }) {
   const records = state.attendance.filter((r) => r.employeeId === me.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
   const approved = new Map(state.payrollRuns.filter((r) => r.status === "Approved").map((r) => [r.id, r]));
   const slips = state.payrollLines.filter((l) => l.employeeId === me.id && approved.has(l.runId)).sort((a, b) => approved.get(b.runId)!.period.localeCompare(approved.get(a.runId)!.period));
+  const openSlip = slips.find((l) => l.id === slipId);
   const reviews = [...state.reviews].filter((r) => r.employeeId === me.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const employeeGoals = state.goals.filter((goal) => goal.ownerName.trim().toLowerCase() === me.name.trim().toLowerCase()).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const latestReview = reviews[0] ?? null;
@@ -101,7 +105,14 @@ export function EmployeePortalPage({ section }: { section: Section }) {
         </Panel>
       </> : null}
       {section === "payslips" ? <Panel title="Approved payslips" subtitle="Only approved payroll is visible here">
-        {slips.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Pay period</th><th>Gross</th><th>Net pay</th><th>Status</th></tr></thead><tbody>{slips.map((l) => <tr key={l.id}><td>{periodLabel(approved.get(l.runId)!.period)}</td><td>{formatNaira(Math.round(l.gross))}</td><td><strong>{formatNaira(Math.round(l.net))}</strong></td><td><Badge tone="ok">Approved</Badge></td></tr>)}</tbody></table></div> : <EmptyState title="No payslips yet">Your payslips appear here after HR approves a payroll run.</EmptyState>}
+        {slips.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Pay period</th><th>Gross</th><th>Net pay</th><th>Status</th><th>Payslip</th></tr></thead><tbody>{slips.map((l) => <tr key={l.id}><td>{periodLabel(approved.get(l.runId)!.period)}</td><td>{formatNaira(Math.round(l.gross))}</td><td><strong>{formatNaira(Math.round(l.net))}</strong></td><td><Badge tone="ok">Approved</Badge></td><td><button type="button" className="btn small" onClick={() => setSlipId(l.id)}>View and download</button></td></tr>)}</tbody></table></div> : <EmptyState title="No payslips yet">Your payslips appear here after HR approves a payroll run. If a run was approved and yours is missing, ask HR to check that your pay is set and your work email matches your sign-in email.</EmptyState>}
+        {openSlip ? <Modal title={`Payslip · ${periodLabel(approved.get(openSlip.runId)!.period)}`} onClose={() => setSlipId(null)}>
+          <PayslipCard company={state.settings.companyName} period={periodLabel(approved.get(openSlip.runId)!.period)} name={me.name} detail={`${me.jobTitle} · ${me.department}`} slip={openSlip} estimate={false} status="Approved" />
+          <div className="modal-actions">
+            <button type="button" className="btn" onClick={() => setSlipId(null)}>Close</button>
+            <button type="button" className="btn dark" onClick={printPayslip}><Icon name="doc" size={15} /> Download PDF</button>
+          </div>
+        </Modal> : null}
       </Panel> : null}
       {section === "performance" ? <>
         <div className="employee-performance-dashboard">
