@@ -77,6 +77,15 @@ export async function signOut() {
   redirect("/login");
 }
 
+/** Signs out someone who was away too long, and says why on the sign-in page. */
+export async function signOutIdle() {
+  if (isSupabaseConfigured) {
+    const supabase = await createClient();
+    await supabase.auth.signOut({ scope: "local" });
+  }
+  redirect("/login?expired=1");
+}
+
 export async function createCompany(_prev: FormState, form: FormData): Promise<FormState> {
   if (!isSupabaseConfigured) return notConfigured();
   const company = field(form, "company", 120);

@@ -22,11 +22,12 @@ function Feedback({ state }: { state: FormState }) {
   return null;
 }
 
-export function LoginForm({ next, linkError }: { next: string; linkError?: boolean }) {
+export function LoginForm({ next, linkError, expired }: { next: string; linkError?: boolean; expired?: boolean }) {
   const [state, action, pending] = useActionState(signIn, initial);
   return (
     <form action={action} className="auth-form">
       {linkError && !state.error ? <p className="auth-error" role="alert">That sign-in link has expired or was already used. Please sign in again.</p> : null}
+      {expired && !state.error ? <p className="auth-message" role="status">You were signed out because you were away for a while. Sign in again to continue.</p> : null}
       <Feedback state={state} />
       <input type="hidden" name="next" value={next} />
       <div className="field">
