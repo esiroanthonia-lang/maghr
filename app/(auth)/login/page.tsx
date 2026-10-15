@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <h1>Sign in</h1>
-      <p className="auth-lead">Welcome back. Sign in to your company’s MagHR workspace.</p>
+      <p className="auth-lead">Welcome back. Sign in to your company’s Membra workspace.</p>
       <LoginForm next={next ?? "/"} linkError={error === "link"} />
     </>
   );

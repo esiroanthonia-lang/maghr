@@ -14,8 +14,8 @@ const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-disp
 const body = Figtree({ subsets: ["latin"], variable: "--font-body", display: "swap", weight: ["400", "500", "600", "700"], preload: false });
 
 export const metadata: Metadata = {
-  title: { default: "MagHR — People, made simpler", template: "%s · MagHR" },
-  description: "MagHR by MyJobMag — HR and recruitment for Nigerian teams.",
+  title: { default: "Membra — People, made simpler", template: "%s · Membra" },
+  description: "Membra by MyJobMag — HR and recruitment for Nigerian teams.",
   robots: { index: false, follow: false },
 };
 

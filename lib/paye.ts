@@ -3,7 +3,7 @@
 //
 // Every rate here is a SETTING with a sensible default, not a hard-coded rule, because tax law
 // changes and companies structure pay differently. Results are estimates until a qualified
-// payroll professional confirms the settings in MagHR (see PayrollConfig.confirmedBy).
+// payroll professional confirms the settings in Membra (see PayrollConfig.confirmedBy).
 
 export interface TaxBand {
   /** Upper limit of the band in naira of annual taxable income; null for "and above". */

@@ -50,7 +50,7 @@ export function EmployeesView() {
       Status: e.status,
       "Start date": e.startDate,
     }));
-    downloadText(`maghr-employees-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+    downloadText(`membra-employees-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
     toast(`Exported ${pluralise(rows.length, "employee")}. Pay is not included.`);
   }
 

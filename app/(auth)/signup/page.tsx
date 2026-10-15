@@ -11,7 +11,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <h1>Create your account</h1>
-      <p className="auth-lead">Set up MagHR for your company, or join a workspace you’ve been invited to.</p>
+      <p className="auth-lead">Set up Membra for your company, or join a workspace you’ve been invited to.</p>
       <SignupForm next={next ?? "/"} />
     </>
   );

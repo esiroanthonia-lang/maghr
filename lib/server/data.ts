@@ -1,4 +1,4 @@
-// Reads and writes MagHR data in Supabase.
+// Reads and writes Membra data in Supabase.
 //
 // The approach: business rules live in ONE place, the pure reducer in lib/recruitment.ts.
 // To save a change, the server loads the company's current data, runs the same reducer

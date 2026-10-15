@@ -78,8 +78,8 @@ export function startSession(persona: Persona, state: DemoState): BotResult {
   const m = menu(persona);
   const intro =
     persona.role === "Candidate"
-      ? `Hello ${name} 👋 This is the MagHR hiring assistant for MyJobMag.`
-      : `Hello ${name} 👋 This is MagHR self-service for MyJobMag staff.`;
+      ? `Hello ${name} 👋 This is the Membra hiring assistant for MyJobMag.`
+      : `Hello ${name} 👋 This is Membra self-service for MyJobMag staff.`;
   return { replies: [intro, m.text], session: { persona, step: "menu", draft: {} }, effects: [], quick: m.quick };
 }
 

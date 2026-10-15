@@ -1,4 +1,4 @@
-// MagHR brand mark: an "M" drawn as two people side by side, the second one rising,
+// Membra brand mark: an "M" drawn as two people side by side, the second one rising,
 // a nod to people and growth. Original artwork.
 export function LogoMark({ size = 34 }: { size?: number }) {
   return (

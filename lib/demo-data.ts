@@ -166,7 +166,7 @@ export function createDemoData(now: Date = new Date()): DemoState {
       department: "Engineering",
       location: "Remote",
       employmentType: "Full-time",
-      description: "Build and maintain the MagHR web app using TypeScript and React.",
+      description: "Build and maintain the Membra web app using TypeScript and React.",
       owner: "Daniel Adebayo",
       status: "Open",
       createdAt: ago(3 * DAY),

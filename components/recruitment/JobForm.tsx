@@ -82,7 +82,7 @@ export function JobForm({ onSubmit, onCancel }: { onSubmit: (input: NewJobInput)
         <Field
           label="Requirements"
           full
-          hint="One per line, e.g. “3+ years of React”, “TypeScript”, “Based in or near Lagos”. MagHR shows reviewers which ones each CV mentions. It never scores or rejects anyone."
+          hint="One per line, e.g. “3+ years of React”, “TypeScript”, “Based in or near Lagos”. Membra shows reviewers which ones each CV mentions. It never scores or rejects anyone."
         >
           {(p) => <textarea {...p} rows={4} value={reqText} onChange={(e) => setReqText(e.target.value)} placeholder={"3+ years of frontend development\nReact\nTypeScript"} />}
         </Field>

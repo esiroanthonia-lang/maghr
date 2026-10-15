@@ -21,7 +21,7 @@ export function SourcingTab() {
     return (
       <Panel title="MyJobMag CV database" subtitle="Not connected yet">
         <EmptyState title="Waiting for MyJobMag API access">
-          Searching the CV database from MagHR needs MyJobMag to approve API access. Only job seekers who opted in to be found will appear.
+          Searching the CV database from Membra needs MyJobMag to approve API access. Only job seekers who opted in to be found will appear.
         </EmptyState>
       </Panel>
     );
@@ -44,7 +44,7 @@ export function SourcingTab() {
     <>
       <div style={{ marginBottom: 14 }}>
         <Notice>
-          Search the MyJobMag CV database without leaving MagHR. <strong>Demo:</strong> these are synthetic profiles. A live version needs MyJobMag API approval and must only show job seekers who opted in to being found.
+          Search the MyJobMag CV database without leaving Membra. <strong>Demo:</strong> these are synthetic profiles. A live version needs MyJobMag API approval and must only show job seekers who opted in to being found.
         </Notice>
       </div>
       <div className="toolbar">

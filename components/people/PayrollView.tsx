@@ -29,7 +29,7 @@ function nextPeriod(runs: PayrollRun[], now: Date | null): string {
 const money = (n: number) => formatNaira(Math.round(n));
 
 function RunDetail({ run, lines, onClose, onSlip }: { run: PayrollRun; lines: PayrollLine[]; onClose: () => void; onSlip: (l: PayrollLine) => void }) {
-  const file = (kind: string) => `maghr-${kind}-${run.period}.csv`;
+  const file = (kind: string) => `membra-${kind}-${run.period}.csv`;
   const sorted = [...lines].sort((a, b) => a.employeeName.localeCompare(b.employeeName));
   return (
     <Modal title={`${periodLabel(run.period)} payroll`} onClose={onClose} wide>
@@ -190,7 +190,7 @@ export function PayrollView() {
               className="btn"
               onClick={() =>
                 downloadText(
-                  `maghr-pay-list-${period}.csv`,
+                  `membra-pay-list-${period}.csv`,
                   toCsv(
                     people.map((e) => {
                       const l = preview.find((x) => x.employeeId === e.id);
@@ -231,7 +231,7 @@ export function PayrollView() {
         {confirmed ? (
           <Notice>
             Payroll rules confirmed by <strong>{cfg.confirmedBy}</strong>
-            {cfg.confirmedAt ? ` on ${formatDate(cfg.confirmedAt)}` : ""}. MagHR works out pay and payslips; money still goes out through your bank.
+            {cfg.confirmedAt ? ` on ${formatDate(cfg.confirmedAt)}` : ""}. Membra works out pay and payslips; money still goes out through your bank.
           </Notice>
         ) : (
           <Notice tone="warn">

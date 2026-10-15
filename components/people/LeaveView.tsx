@@ -131,7 +131,7 @@ export function LeaveView() {
               className="btn"
               onClick={() =>
                 downloadText(
-                  `maghr-leave-${todayIso ?? "export"}.csv`,
+                  `membra-leave-${todayIso ?? "export"}.csv`,
                   toCsv(state.leave.map((l) => ({ Employee: name(l.employeeId), Type: l.leaveType, From: l.startDate, To: l.endDate, Days: l.days, Status: l.status, "Decided by": l.decidedBy }))),
                 )
               }
