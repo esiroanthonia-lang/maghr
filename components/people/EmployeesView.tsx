@@ -139,7 +139,7 @@ export function EmployeesView() {
                     <th scope="col">Department</th>
                     <th scope="col">Job title</th>
                     <th scope="col">Manager</th>
-                    <th scope="col">Location</th>
+                    <th scope="col" className="col-extra">Location</th>
                     <th scope="col">Status</th>
                     {isAdmin ? <th scope="col">Monthly gross</th> : null}
                     {isAdmin ? <th scope="col">Profile</th> : null}
@@ -160,7 +160,7 @@ export function EmployeesView() {
                       <td>{e.department}</td>
                       <td>{e.jobTitle}</td>
                       <td>{e.managerName || "—"}</td>
-                      <td>{e.location || "—"}</td>
+                      <td className="col-extra">{e.location || "—"}</td>
                       <td>
                         <Badge tone={statusTone(e.status)}>{e.status}</Badge>
                       </td>
