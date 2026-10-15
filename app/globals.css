@@ -1264,3 +1264,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .data-table th, .data-table td { padding-left: 14px; padding-right: 14px; }
 /* Wide tables: drop the least important column on smaller laptops so Pay and Profile stay visible */
 @media (max-width: 1500px) { .data-table .col-extra { display: none; } }
+/* Goals and Reviews filter bars sat flush against the panel edge */
+.panel > .performance-toolbar { margin: 0; padding: 16px 22px; }
+/* My performance cards: content sat flush against the panel edge */
+.employee-performance-dashboard { gap: 20px; align-items: stretch; }
+.employee-performance-dashboard > .panel { margin-top: 0; }
+.employee-performance-profile, .employee-performance-score, .employee-goal-progress { padding: 20px 22px; }
