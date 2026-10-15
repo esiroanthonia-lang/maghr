@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { formatDate, pluralise } from "@/lib/format";
 import { computePayslip } from "@/lib/paye";
@@ -215,6 +216,7 @@ export function PayrollView() {
                 type="button"
                 className="btn primary"
                 disabled={count === 0}
+                title={count === 0 ? "Set at least one person's pay on their profile first" : undefined}
                 onClick={() => {
                   act({ type: "payroll/create", period });
                   toast(`Payroll for ${periodLabel(period)} prepared as a draft.`);
@@ -375,7 +377,10 @@ export function PayrollView() {
                       </>
                     ) : (
                       <td colSpan={5}>
-                        <Badge tone="warn">Pay not set</Badge>
+                        <Badge tone="warn">Pay not set</Badge>{" "}
+                        <Link className="link-btn" href={`/employees/${e.id}`}>
+                          Set pay
+                        </Link>
                       </td>
                     )}
                   </tr>
