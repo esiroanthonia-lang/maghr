@@ -143,3 +143,22 @@ export async function removeMember(userId: string): Promise<TeamResult> {
     return guard(e);
   }
 }
+
+/**
+ * HR admins can email a teammate a password-reset link. HR never sees or sets the password:
+ * the person chooses a new one from the link, which only reaches their own inbox.
+ */
+export async function sendPasswordReset(userId: string): Promise<TeamResult> {
+  try {
+    const { supabase, info } = await adminSession();
+    // Row-level security only returns members of the admin's own company.
+    const { data, error } = await supabase.from("memberships").select("email").eq("org_id", info.orgId).eq("user_id", userId).maybeSingle();
+    const email = typeof data?.email === "string" ? data.email.trim().toLowerCase() : "";
+    if (error || !EMAIL.test(email)) return { ok: false, error: "Couldn’t find that teammate’s email." };
+    const { error: sendError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/callback?next=/reset-password` });
+    if (sendError) return { ok: false, error: /rate|seconds|many/i.test(sendError.message) ? "Too many reset emails just now. Wait a few minutes and try again." : "Couldn’t send the reset email. Please try again." };
+    return { ok: true };
+  } catch (e) {
+    return guard(e);
+  }
+}
